@@ -180,10 +180,12 @@ function CrmCustomers() {
     navigate(result.redirect)
   }
   const visible = customers.filter((item) => `${item.company}${item.brand}${item.account}`.toLowerCase().includes(query.toLowerCase()))
+  const primaryCustomer = customers.find((item) => item.id === currentCustomer().id) || customers.find((item) => item.status === '服务中') || customers[0]
 
   return (
     <main className="content-page crm-content">
-      <div className="page-heading"><div><span className="section-kicker">CUSTOMER RELATIONSHIP MANAGEMENT</span><h1>客户管理</h1><p>管理客户账号，并通过一键登录进入客户的 GEO 工作台。</p></div><button className="primary-button" onClick={() => setAdding(true)}><Plus size={18} /> 新建客户</button></div>
+      <div className="page-heading"><div><span className="section-kicker">CUSTOMER RELATIONSHIP MANAGEMENT</span><h1>客户管理</h1><p>选择客户后进入完整的 GEO 运营工作台。</p></div><div className="heading-actions"><button className="geo-launch-button" disabled={!primaryCustomer} onClick={() => setLaunch(primaryCustomer)}><Sparkles size={18} /> 进入 GEO 工作台 <ChevronRight size={17} /></button><button className="primary-button secondary-create" onClick={() => setAdding(true)}><Plus size={18} /> 新建客户</button></div></div>
+      <section className="geo-entry-banner"><div className="geo-entry-icon"><Sparkles /></div><div><span>GEO 已开通</span><h2>从客户管理进入 AI 搜索运营平台</h2><p>可使用关键词、知识库、内容创作、全域发布和 AI 搜索数据报表。</p></div><button onClick={() => setLaunch(primaryCustomer)} disabled={!primaryCustomer}>选择客户进入 GEO <ChevronRight size={17} /></button></section>
       <div className="stat-strip">
         <div><span>客户总数</span><b>{customers.length}</b><small>家</small></div>
         <div><span>服务中</span><b>{customers.filter((c) => c.status === '服务中').length}</b><small>家</small></div>
@@ -192,12 +194,12 @@ function CrmCustomers() {
       </div>
       <section className="data-card">
         <div className="data-toolbar"><div className="search-box"><Search size={17} /><input placeholder="搜索客户名称、品牌或账号" value={query} onChange={(e) => setQuery(e.target.value)} /></div><div className="table-tabs"><button className="active">全部客户</button><button>待跟进</button><button>已到期</button></div></div>
-        <div className="table-scroll"><table><thead><tr><th>客户名称 / 品牌</th><th>登录账号</th><th>所属城市</th><th>产品</th><th>客户状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>{visible.map((customer) => <tr key={customer.id}><td><div className="company-cell"><span>{customer.brand.slice(0, 1)}</span><div><b>{customer.company}</b><small>{customer.brand}</small></div></div></td><td>{customer.account}</td><td>{customer.city || '-'}</td><td><span className="tag blue">{customer.product}</span></td><td><span className={`status-dot ${customer.status === '服务中' ? 'success' : ''}`}>{customer.status}</span></td><td>{customer.created_at?.slice(0, 10)}</td><td><button className="icon-action" aria-label={`进入 ${customer.brand}`} title="一键登录" onClick={() => setLaunch(customer)}><CircleUserRound size={20} /></button></td></tr>)}</tbody></table></div>
+        <div className="table-scroll"><table><thead><tr><th>客户名称 / 品牌</th><th>登录账号</th><th>所属城市</th><th>产品</th><th>客户状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>{visible.map((customer) => <tr key={customer.id}><td><div className="company-cell"><span>{customer.brand.slice(0, 1)}</span><div><b>{customer.company}</b><small>{customer.brand}</small></div></div></td><td>{customer.account}</td><td>{customer.city || '-'}</td><td><span className="tag blue">{customer.product}</span></td><td><span className={`status-dot ${customer.status === '服务中' ? 'success' : ''}`}>{customer.status}</span></td><td>{customer.created_at?.slice(0, 10)}</td><td><button className="geo-row-action" aria-label={`进入 ${customer.brand} 的 GEO 工作台`} onClick={() => setLaunch(customer)}><CircleUserRound size={17} /><span>进入 GEO</span><ChevronRight size={15} /></button></td></tr>)}</tbody></table></div>
       </section>
       <Modal open={!!launch} onClose={() => setLaunch(null)} title={`进入 ${launch?.brand || ''}`} wide>
         <p className="modal-copy">选择要进入的业务平台。GEO 将带入该客户身份和数据权限。</p>
         <div className="product-grid">
-          <button className="product-card active" onClick={enterGeo}><div className="product-icon"><Sparkles /></div><div><b>GEO</b><span>全域 AI 搜索营销</span></div><ChevronRight /></button>
+          <button className="product-card active" onClick={enterGeo}><div className="product-icon"><Sparkles /></div><div><b>GEO 工作台</b><span>全域 AI 搜索营销 · 点击进入</span></div><ChevronRight /></button>
           <button className="product-card disabled"><div className="product-icon"><Play /></div><div><b>短视频 SEO</b><span>视频搜索与分发</span></div><span className="soon">未开通</span></button>
           <button className="product-card disabled"><div className="product-icon"><Globe2 /></div><div><b>搜索引擎 SEO</b><span>传统搜索增长</span></div><span className="soon">未开通</span></button>
         </div>

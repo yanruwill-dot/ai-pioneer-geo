@@ -26,3 +26,5 @@ npm audit --audit-level=high
 浏览器验证在本地服务启动后执行，覆盖 `yanru` 登录、CRM 客户列表、小人入口、GEO 跳转、转化目标新增回查、AI 智能体保存刷新回查、媒体授权卡片、竞争力报告和 390px 移动端布局。前端控制台错误与警告均为 0。
 
 GitHub Pages 构建使用 `GITHUB_ACTIONS=true VITE_STATIC_DEMO=true npm run build`，并核对 `/ai-pioneer-geo/` 资源路径、SPA `404.html` 和 `.nojekyll`。公网部署后继续验证登录、小人入口、深层页操作和公开 HTTP 状态。
+
+GEO 入口可见性修复后，需从公网 CRM 页面分别验证顶部“进入 GEO 工作台”、横幅“选择客户进入 GEO”和客户行“进入 GEO”三个入口，并确认最终到达 `/geo/dashboard`。
