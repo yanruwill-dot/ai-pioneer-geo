@@ -1,0 +1,176 @@
+const STORE_KEY = 'ai_pioneer_pages_demo_db_v1'
+const SESSION_TOKEN = 'ai-pioneer-pages-session'
+
+const moduleRows = [
+  ['team', 'AI内容运营组', '运营团队', '已启用', '4 名成员', '负责知识资产、内容审核与发布回查'],
+  ['team', '品牌审核组', '审核团队', '已启用', '2 名成员', '负责品牌事实和最终发布审核'],
+  ['targets', '智焰 AI', '品牌名称', '已生效', '主目标', '用于监测大模型回答中的品牌提及'],
+  ['targets', '智焰科技有限公司', '企业名称', '待生效', '企业主体', '认证通过后同步到报表'],
+  ['images', '品牌主视觉·蓝紫渐变', '品牌视觉', '已启用', '2400 × 1600', '用于文章头图与媒体发布'],
+  ['images', 'GEO 五步增长路径', '信息图', '已启用', '1600 × 900', '用于知识内容配图'],
+  ['video-script', '企业为什么要做 GEO', '知识口播', '待审核', '90 秒', '讲清 GEO 的商业价值'],
+  ['templates', '蓝紫数据解读模板', '横版视频', '已启用', '16:9', '包含标题、数据卡和结论页'],
+  ['account-auth', '中国商报网', '新闻媒体', '已授权', '权威媒体', '可用于企业新闻与品牌动态发布'],
+  ['account-auth', '中国经济网', '新闻媒体', '可使用', '省市级媒体', '支持企业资讯类内容'],
+  ['account-auth', '微信公众号', '自媒体矩阵', '未授权', '自有账号', '授权后可进入自动发布队列'],
+  ['account-auth', '企业官网', 'B2B 行业网站', '已授权', '自有站点', '用于结构化内容沉淀与信源回查'],
+  ['prompts', '公司介绍 + 核心优势 + FAQ', '系统提示词', '已启用', 'EEAT', '围绕企业背景、专业能力和常见问题生成文章'],
+  ['prompts', '行业趋势 + 选择指南', '平台发布指令', '已启用', 'GEO', '输出行业背景、决策维度与品牌能力'],
+  ['article-batch', 'AI 搜索问题词首批内容', '批量创作', '生成中', '6 / 10', '生成后进入人工确认'],
+  ['article-batch', '企业 GEO 入门系列', '批量创作', '已完成', '8 / 8', '已同步到文章管理'],
+  ['article-manage', 'GEO 入门指南：让品牌进入 AI 答案', '品牌解读', '已发布', '发布 3 次', '围绕 GEO 价值、步骤和评估方式展开'],
+  ['article-manage', '企业做 GEO 前必须准备的 5 类资料', '实操教程', '待审批', '0 次', '包含主体资料、产品知识和案例证据'],
+  ['stations', '杭州 GEO 服务中心', '城市分站', '已上线', '权重 82', '覆盖杭州企业 GEO 等地域词'],
+  ['stations', '上海 AI 搜索增长中心', '城市分站', '建设中', '完成 68%', '正在补充本地案例和服务页面'],
+  ['records', 'GEO 入门指南：让品牌进入 AI 答案', '新闻媒体', '发布成功', '3 个站点', '公开页已回查'],
+  ['records', '企业做 GEO 前必须准备的 5 类资料', 'B2B 网站', '发布中', '2 / 5', '已提交，等待平台回执'],
+  ['video-create', '品牌进入 AI 答案的五步法', '横版视频', '渲染中', '72%', '脚本、配音和字幕已完成'],
+  ['video-manage', '企业为什么要做 GEO', '知识口播', '已完成', '01:28', '1080P 成片已通过检查'],
+  ['video-records', '企业为什么要做 GEO', '视频号', '发布成功', '公开可见', '已核对标题、时长与封面'],
+]
+
+function isoDate(day = 5) {
+  return `2026-08-${String(day).padStart(2, '0')} 09:00:00`
+}
+
+function initialState() {
+  const keywords = [
+    ['AI 内容营销', '核心业务', 1280, '已完成'],
+    ['企业 GEO 怎么做', '问题词', 860, '已完成'],
+    ['AI 搜索排名优化', '行业词', 720, '训练中'],
+    ['品牌如何被大模型推荐', '问题词', 640, '已完成'],
+    ['杭州 AI 营销公司', '地域词', 390, '训练中'],
+  ].map(([word, category, search_volume, status], index) => ({ id: index + 1, word, category, search_volume, status, created_at: isoDate(index + 1) }))
+  const knowledge = [
+    ['公司与品牌介绍', '企业资料', '智焰 AI 为企业提供 AI 内容生产、GEO 策略和多平台运营服务。'],
+    ['核心服务说明', '产品服务', '覆盖品牌定位、关键词体系、知识资产、内容生产、信源发布和数据复盘。'],
+    ['客户常见问题', 'FAQ', '围绕 GEO 的投入、周期、平台覆盖和效果验证提供标准问答。'],
+  ].map(([title, type, content], index) => ({ id: index + 1, title, type, content, status: '已启用', created_at: isoDate(index + 1) }))
+  const publishTasks = [
+    ['GEO 入门指南：让品牌进入 AI 答案', '新闻媒体', '发布成功', 100],
+    ['企业做 GEO 前必须准备的 5 类资料', 'B2B 网站', '发布中', 68],
+    ['AI 搜索品牌可见度周报', '自有站点', '待发布', 0],
+  ].map(([title, channel, status, progress], index) => ({ id: index + 1, title, channel, status, progress, scheduled_at: isoDate(index + 4), created_at: isoDate(index + 1) }))
+  const automations = [
+    ['每日 AI 平台采样', '每天 09:00', 1],
+    ['品牌问题词扩展', '每周一 10:00', 1],
+    ['内容发布与回查', '每 6 小时', 0],
+  ].map(([name, cadence, enabled], index) => ({ id: index + 1, name, cadence, enabled, last_run: isoDate(4), next_run: enabled ? isoDate(6) : '已暂停' }))
+  const platforms = ['DeepSeek', '豆包', '元宝', '文心一言', '通义千问']
+  const observations = []
+  let observationId = 1
+  platforms.forEach((platform, platformIndex) => keywords.forEach((keyword, wordIndex) => {
+    const mentioned = (platformIndex * 5 + wordIndex) % 4 !== 0 ? 1 : 0
+    observations.push({ id: observationId++, platform, keyword: keyword.word, rank: mentioned ? ((platformIndex + wordIndex) % 5) + 1 : null, mentioned, cited: (platformIndex + wordIndex) % 5 === 0 ? 1 : 0, sentiment: (platformIndex + wordIndex) % 7 === 0 ? '中性' : '正向', observed_at: isoDate(wordIndex + 1) })
+  }))
+  return {
+    customers: [
+      { id: 1, company: '智焰科技有限公司', brand: '智焰 AI', account: 'zhiyan', city: '杭州', status: '服务中', product: 'GEO', created_at: isoDate() },
+      { id: 2, company: '澄明教育科技', brand: '澄明课堂', account: 'chengming', city: '上海', status: '服务中', product: 'GEO', created_at: isoDate() },
+      { id: 3, company: '向海品牌咨询', brand: '向海咨询', account: 'xianghai', city: '深圳', status: '待配置', product: 'GEO', created_at: isoDate() },
+    ],
+    keywords,
+    knowledge,
+    publishTasks,
+    automations,
+    observations,
+    moduleItems: moduleRows.map(([module, title, item_type, status, metric, detail], index) => ({ id: index + 1, module, title, item_type, status, metric, detail, created_at: isoDate(), updated_at: isoDate() })),
+    settings: {
+      realname: { authType: '企业认证', company: '智焰科技有限公司', unifiedCode: '91330100MA******8X', legalRepresentative: '企业管理员', status: '已认证', address: '浙江省杭州市' },
+      agent: { tab: '智能体官网', name: '智焰 AI 品牌顾问', welcome: '你好，我是品牌 AI 顾问，可以为你介绍 GEO 服务、实施流程和案例。', tone: '专业、清晰、可信', websiteDomain: 'ai.zhiyan.example', servicePhone: '400-800-2026', enabled: true },
+    },
+  }
+}
+
+function readState() {
+  try {
+    return JSON.parse(localStorage.getItem(STORE_KEY)) || initialState()
+  } catch {
+    return initialState()
+  }
+}
+
+function writeState(state) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(state))
+}
+
+function nextId(rows) {
+  return Math.max(0, ...rows.map((row) => Number(row.id) || 0)) + 1
+}
+
+function dashboard(state) {
+  const rows = state.observations
+  const mentions = rows.reduce((sum, row) => sum + row.mentioned, 0)
+  const citations = rows.reduce((sum, row) => sum + row.cited, 0)
+  const platformStats = [...new Set(rows.map((row) => row.platform))].map((platform) => {
+    const platformRows = rows.filter((row) => row.platform === platform)
+    const ranked = platformRows.filter((row) => row.rank)
+    return { platform, samples: platformRows.length, mentions: platformRows.reduce((sum, row) => sum + row.mentioned, 0), citations: platformRows.reduce((sum, row) => sum + row.cited, 0), averageRank: ranked.length ? Number((ranked.reduce((sum, row) => sum + row.rank, 0) / ranked.length).toFixed(1)) : null }
+  })
+  const trend = [1, 2, 3, 4, 5, 6, 7].map((day) => ({ date: `08-${String(day).padStart(2, '0')}`, mentions: rows.filter((row) => row.observed_at.includes(`08-${String(day).padStart(2, '0')}`)).reduce((sum, row) => sum + row.mentioned, 0), citations: rows.filter((row) => row.observed_at.includes(`08-${String(day).padStart(2, '0')}`)).reduce((sum, row) => sum + row.cited, 0) }))
+  return { samples: rows.length, mentions, citations, platforms: platformStats.filter((row) => row.mentions).length, words: new Set(rows.map((row) => row.keyword)).size, top1: rows.filter((row) => row.rank === 1).length, visibilityRate: Math.round((mentions / rows.length) * 100), top1Rate: Math.round((rows.filter((row) => row.rank === 1).length / rows.length) * 100), platformStats, trend }
+}
+
+export async function demoApi(path, options = {}) {
+  await new Promise((resolve) => setTimeout(resolve, 90))
+  const method = options.method || 'GET'
+  const body = options.body ? JSON.parse(options.body) : {}
+  const url = new URL(path, location.origin)
+  const state = readState()
+  const pathname = url.pathname
+
+  if (pathname === '/auth/login' && method === 'POST') {
+    if (body.username !== 'yanru' || body.password !== '123456') throw new Error('账号或密码不正确')
+    return { token: SESSION_TOKEN, user: { id: 1, username: 'yanru', name: 'AI运营官', role: '超级管理员' } }
+  }
+  if (pathname === '/auth/me') return { id: 1, username: 'yanru', name: 'AI运营官', role: '超级管理员' }
+  if (pathname === '/auth/logout') return null
+  if (pathname === '/crm/customers' && method === 'GET') return [...state.customers].reverse()
+  if (pathname === '/crm/customers' && method === 'POST') {
+    const row = { id: nextId(state.customers), ...body, phone: body.phone || '', status: body.status || '待配置', product: 'GEO', created_at: isoDate() }
+    state.customers.push(row); writeState(state); return row
+  }
+  const customerMatch = pathname.match(/^\/crm\/customers\/(\d+)\/enter-geo$/)
+  if (customerMatch) {
+    const customer = state.customers.find((row) => row.id === Number(customerMatch[1]))
+    if (!customer) throw new Error('客户不存在')
+    return { customer, product: 'GEO', redirect: '/geo/dashboard' }
+  }
+  if (pathname === '/dashboard') return dashboard(state)
+  if (pathname === '/observations') return [...state.observations].reverse()
+
+  const resources = { '/keywords': 'keywords', '/knowledge': 'knowledge', '/publish-tasks': 'publishTasks', '/automations': 'automations' }
+  const resourceKey = resources[pathname]
+  if (resourceKey && method === 'GET') return [...state[resourceKey]].reverse()
+  if (pathname === '/keywords' && method === 'POST') {
+    const row = { id: nextId(state.keywords), word: body.word, category: body.category, search_volume: Number(body.searchVolume) || 0, status: '训练中', created_at: isoDate() }
+    state.keywords.push(row); writeState(state); return row
+  }
+  if (pathname === '/knowledge' && method === 'POST') {
+    const row = { id: nextId(state.knowledge), title: body.title, type: body.type, content: body.content, status: '已启用', created_at: isoDate() }
+    state.knowledge.push(row); writeState(state); return row
+  }
+  if (pathname === '/publish-tasks' && method === 'POST') {
+    const row = { id: nextId(state.publishTasks), title: body.title, channel: body.channel, status: '待发布', progress: 0, scheduled_at: body.scheduledAt, created_at: isoDate() }
+    state.publishTasks.push(row); writeState(state); return row
+  }
+  const automationMatch = pathname.match(/^\/automations\/(\d+)\/toggle$/)
+  if (automationMatch) {
+    const row = state.automations.find((item) => item.id === Number(automationMatch[1])); row.enabled = row.enabled ? 0 : 1; writeState(state); return row
+  }
+  if (pathname === '/module-items' && method === 'GET') return state.moduleItems.filter((row) => row.module === url.searchParams.get('module')).reverse()
+  if (pathname === '/module-items' && method === 'POST') {
+    const row = { id: nextId(state.moduleItems), module: body.module, title: body.title, item_type: body.itemType, status: body.status, metric: body.metric, detail: body.detail, created_at: isoDate(), updated_at: isoDate() }
+    state.moduleItems.push(row); writeState(state); return row
+  }
+  const itemMatch = pathname.match(/^\/module-items\/(\d+)$/)
+  if (itemMatch && method === 'PATCH') {
+    const row = state.moduleItems.find((item) => item.id === Number(itemMatch[1])); Object.assign(row, { ...(body.title !== undefined && { title: body.title }), ...(body.itemType !== undefined && { item_type: body.itemType }), ...(body.status !== undefined && { status: body.status }), ...(body.metric !== undefined && { metric: body.metric }), ...(body.detail !== undefined && { detail: body.detail }), updated_at: isoDate() }); writeState(state); return row
+  }
+  const settingsMatch = pathname.match(/^\/module-settings\/([^/]+)$/)
+  if (settingsMatch && method === 'GET') return { customer_id: 1, module: settingsMatch[1], data: state.settings[settingsMatch[1]] || {} }
+  if (settingsMatch && method === 'PUT') {
+    state.settings[settingsMatch[1]] = body.data; writeState(state); return { customer_id: 1, module: settingsMatch[1], data: body.data }
+  }
+  throw new Error(`演示接口暂不支持：${method} ${pathname}`)
+}
