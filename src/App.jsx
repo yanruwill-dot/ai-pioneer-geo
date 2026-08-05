@@ -230,7 +230,11 @@ function GeoShell({ children }) {
   const [location, navigate] = useLocation()
   const [collapsed, setCollapsed] = useState(false)
   const [mobile, setMobile] = useState(false)
-  const [opened, setOpened] = useState(() => new Set(['建资产', '发全域', '盯数据']))
+  const [opened, setOpened] = useState(() => new Set())
+  useEffect(() => {
+    const currentGroup = geoNav.find((item) => item.children?.some((child) => child.path === location))
+    setOpened(currentGroup ? new Set([currentGroup.label]) : new Set())
+  }, [location])
   const toggle = (label) => setOpened((prev) => {
     const next = new Set(prev); next.has(label) ? next.delete(label) : next.add(label); return next
   })
@@ -257,6 +261,7 @@ function MetricCard({ icon: Icon, label, value, suffix, color, detail }) {
 
 function GeoDashboard() {
   const customer = currentCustomer()
+  const [, navigate] = useLocation()
   const [data, setData] = useState(null)
   useEffect(() => { api(`/dashboard?customerId=${customer.id}`).then(setData) }, [customer.id])
   if (!data) return <div className="page-loader"><Sparkles /> 正在汇总 GEO 数据</div>
@@ -275,11 +280,16 @@ function GeoDashboard() {
         <section className="guide-card"><div className="home-card-title"><WandSparkles size={18} /><b>AI搜索营销指引</b></div><div className="guide-steps">{guide.map(([name, promise, desc], index) => <div key={name}><div className="guide-icon"><span>{String(index + 1).padStart(2, '0')}</span></div><h3>{String(index + 1).padStart(2, '0')} {name}</h3><b>{promise}</b><p>{desc}</p></div>)}</div></section>
         <aside className="home-aside"><section className="company-summary"><div className="company-avatar">公司</div><div><b>{customer.company}</b><span>团队名：{customer.brand}</span></div><em><BadgeCheck size={14} /> 已认证</em></section><section className="package-summary"><div className="home-card-title"><Boxes size={17} /><b>套餐资源剩余</b></div>{[['媒体发布（篇）', '0 / 5000', 0], ['平台发布（篇）', '0 / 3500', 0], ['视频发布（条）', '0 / 500', 0]].map(([name, value, percent]) => <div className="package-row" key={name}><span>{name}</span><b>{value}</b><div><i style={{ width: `${percent}%` }} /></div></div>)}<div className="package-expiry"><span>套餐有效期至</span><b>2027-08-03</b></div></section></aside>
       </div>
+      <section className="report-entry-card"><div className="home-card-title"><FileChartColumn size={18} /><b>数据报表</b></div><div className="report-entry-grid">
+        <button onClick={() => navigate('/geo/report')}><span className="report-entry-icon blue"><Search /></span><span><b>AI搜索排名</b><em>AI搜索营销报表</em></span><ChevronRight /></button>
+        <button onClick={() => navigate('/geo/competition')}><span className="report-entry-icon purple"><BarChart3 /></span><span><b>行业竞争力</b><em>AI搜索竞争力分析</em></span><ChevronRight /></button>
+        <button onClick={() => navigate('/geo/report')}><span className="report-entry-icon coral"><Bell /></span><span><b>舆情监测</b><em>品牌倾向与引用明细</em></span><ChevronRight /></button>
+      </div></section>
       <div className="dashboard-heading"><div><span className="section-kicker">DATA OVERVIEW</span><h2>数据指标</h2></div><div className="hero-score"><div className="score-ring" style={{ '--score': `${data.visibilityRate * 3.6}deg` }}><span><b>{data.visibilityRate}</b><small>综合可见度</small></span></div><div><b>品牌健康</b><span>较上周提升 8.4%</span></div></div></div>
       <div className="metrics-grid">
         <MetricCard icon={Sparkles} label="AI 大模型排名收录总量" value={data.mentions} suffix="次" color="#fb8458" detail="近 7 日 +12" />
         <MetricCard icon={Search} label="AI 搜索词数量" value={data.words} suffix="个" color="#315ff4" detail="覆盖核心业务与问题词" />
-        <MetricCard icon={Boxes} label="收录 AI 平台数量" value={data.platforms} suffix="个" color="#963bff" detail="共监测 5 个主流平台" />
+        <MetricCard icon={Boxes} label="收录 AI 平台数量" value={data.platforms} suffix="个" color="#963bff" detail="持续监测 11 个主流平台" />
         <MetricCard icon={Target} label="AI 搜索直接转化曝光" value={data.citations} suffix="次" color="#16b77a" detail="官网链接与联系方式" />
       </div>
       <div className="dashboard-grid">
@@ -358,9 +368,83 @@ function ReportPage() {
   const customer = currentCustomer()
   const [data, setData] = useState(null)
   const [rows, setRows] = useState([])
+  const [platform, setPlatform] = useState('全部平台')
+  const [device, setDevice] = useState('全部设备')
+  const [query, setQuery] = useState('')
+  const [detail, setDetail] = useState(null)
+  const [reportTab, setReportTab] = useState('全部')
+  const [shared, setShared] = useState(false)
   useEffect(() => { Promise.all([api(`/dashboard?customerId=${customer.id}`), api(`/observations?customerId=${customer.id}`)]).then(([summary, observations]) => { setData(summary); setRows(observations) }) }, [customer.id])
   if (!data) return <div className="page-loader"><FileChartColumn /> 正在生成分析报告</div>
-  return <main className="content-page report-page"><div className="report-banner"><div><span>AI SEARCH VISIBILITY REPORT</span><h1>{customer.brand} AI 搜索营销报表</h1><p>基于已采样的大模型回答，展示品牌可见度、排名和引用情况。</p></div><div className="report-date"><span>报告周期</span><b>2026.07.30 — 2026.08.05</b><small>最近更新：今天 09:00</small></div></div><div className="report-metrics"><div><span>综合可见度</span><b>{data.visibilityRate}%</b><em>↑ 8.4%</em></div><div><span>品牌 TOP1 率</span><b>{data.top1Rate}%</b><em>↑ 3.2%</em></div><div><span>收录总量</span><b>{data.mentions}</b><em>↑ 12 次</em></div><div><span>直接引用</span><b>{data.citations}</b><em>官网 / 联系方式</em></div></div><section className="chart-card report-chart"><div className="card-heading"><div><span>跨平台表现</span><h3>大模型收录对比</h3></div></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.platformStats}><CartesianGrid stroke="#edf0f8" vertical={false} /><XAxis dataKey="platform" axisLine={false} tickLine={false} /><YAxis axisLine={false} tickLine={false} /><Tooltip /><Bar dataKey="mentions" name="品牌收录" fill="#315ff4" radius={[7, 7, 0, 0]} /><Bar dataKey="citations" name="直接引用" fill="#9d66f5" radius={[7, 7, 0, 0]} /></BarChart></ResponsiveContainer></div></section><section className="data-card"><div className="data-toolbar"><h3>搜索词采样明细</h3><button className="filter-button">导出报告</button></div><div className="table-scroll"><table><thead><tr><th>AI 平台</th><th>搜索词</th><th>是否收录</th><th>排名</th><th>直接引用</th><th>情感倾向</th><th>采样时间</th></tr></thead><tbody>{rows.slice(0, 12).map((row) => <tr key={row.id}><td><b>{row.platform}</b></td><td>{row.keyword}</td><td><span className={`tag ${row.mentioned ? 'green' : ''}`}>{row.mentioned ? '已收录' : '未收录'}</span></td><td>{row.rank ? `TOP ${row.rank}` : '-'}</td><td>{row.cited ? '是' : '否'}</td><td>{row.sentiment}</td><td>{row.observed_at?.slice(0, 10)}</td></tr>)}</tbody></table></div></section></main>
+  const platformNames = ['DeepSeek', '豆包', '元宝', '文心一言', '千问', '纳米AI', 'Kimi', '讯飞星火', '百度AI', '抖音AI', '夸克AI']
+  const normalizePlatform = (name) => name === '通义千问' ? '千问' : name
+  const platformLookup = Object.fromEntries(data.platformStats.map((item) => [normalizePlatform(item.platform), item]))
+  const filteredRows = rows.filter((row, index) => {
+    const matchesPlatform = platform === '全部平台' || normalizePlatform(row.platform) === platform
+    const rowDevice = index % 2 === 0 ? 'PC' : '移动端'
+    return matchesPlatform && (device === '全部设备' || device === rowDevice) && row.keyword.toLowerCase().includes(query.toLowerCase()) && (reportTab === '全部' || row.mentioned)
+  })
+  return <main className="content-page report-page">
+    <div className="report-command"><div><span>AI SEARCH MARKETING REPORT</span><h1>AI搜索营销报表</h1><p>数据更新时间：2026-08-05 · 支持在线预览最近 5,000 条采样数据</p></div><button className="primary-button" onClick={async () => { await navigator.clipboard?.writeText(location.href); setShared(true); setTimeout(() => setShared(false), 1800) }}>{shared ? '链接已复制' : '分享报表'}</button></div>
+    <section className="model-map-card"><div className="model-map-center"><Sparkles /><b>AI 搜索</b><span>{data.samples} 次采样</span></div><div className="model-platforms">{platformNames.map((name, index) => <button key={name} className={platform === name ? 'active' : ''} onClick={() => setPlatform(platform === name ? '全部平台' : name)}><i>{name.slice(0, 1)}</i><span>{name}</span><b>{platformLookup[name]?.mentions || 0}</b><em>{index < 8 ? '大模型' : 'AI搜索'}</em></button>)}</div></section>
+    <div className="report-metrics report-metrics-detailed"><div><span>AI大模型排名收录总量</span><b>{data.mentions}</b><em>今日新增 +{Math.max(1, Math.round(data.mentions / 8))}</em></div><div><span>AI搜索词数量</span><b>{data.words}</b><em>近30日核心问题资产</em></div><div><span>蒸馏词数量</span><b>{Math.max(data.words * 4, 20)}</b><em>近30日新增 +6</em></div><div><span>收录AI平台数量</span><b>{data.platforms}</b><em>总监测平台 11</em></div></div>
+    <div className="report-analysis-grid"><section className="chart-card"><div className="card-heading"><div><span>ARTICLE &amp; CITATION TREND</span><h3>文章数据与收录趋势</h3></div><select><option>近30日</option><option>近7日</option></select></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><AreaChart data={data.trend}><CartesianGrid stroke="#edf0f8" vertical={false} /><XAxis dataKey="date" axisLine={false} tickLine={false} /><YAxis axisLine={false} tickLine={false} allowDecimals={false} /><Tooltip /><Area type="monotone" dataKey="mentions" name="收录次数" stroke="#315ff4" strokeWidth={3} fill="#e9edff" /><Area type="monotone" dataKey="citations" name="转化曝光" stroke="#a25eef" strokeWidth={2} fill="transparent" /></AreaChart></ResponsiveContainer></div></section><aside className="conversion-card"><div className="home-card-title"><Target size={17} /><b>AI搜索转化方式收录</b></div><div><span>官网链接曝光</span><b>{data.citations}</b><i style={{ width: `${Math.min(100, data.citations * 12)}%` }} /></div><div><span>联系方式曝光</span><b>{Math.max(1, Math.round(data.citations / 2))}</b><i style={{ width: `${Math.min(100, data.citations * 7)}%` }} /></div><div><span>品牌名称曝光</span><b>{data.mentions}</b><i style={{ width: `${data.visibilityRate}%` }} /></div></aside></div>
+    <section className="data-card report-detail-card"><div className="report-table-tabs"><button className={reportTab === '全部' ? 'active' : ''} onClick={() => setReportTab('全部')}>全部 <span>{rows.length}</span></button><button className={reportTab === '搜索报表' ? 'active' : ''} onClick={() => setReportTab('搜索报表')}>搜索报表 <span>{rows.filter((row) => row.mentioned).length}</span></button></div><div className="report-note">由于大模型动态学习和结果个性化，不同时间、区域与设备的查询结果可能存在差异。</div><div className="data-toolbar"><div className="filter-line"><select value={platform} onChange={(e) => setPlatform(e.target.value)}><option>全部平台</option>{platformNames.map((name) => <option key={name}>{name}</option>)}</select><select value={device} onChange={(e) => setDevice(e.target.value)}><option>全部设备</option><option>PC</option><option>移动端</option></select><div className="search-box"><Search size={17} /><input aria-label="搜索问题" placeholder="请输入问题" value={query} onChange={(e) => setQuery(e.target.value)} /></div></div><button className="filter-button" onClick={() => { setPlatform('全部平台'); setDevice('全部设备'); setQuery(''); setReportTab('全部') }}><SlidersHorizontal size={16} /> 重置筛选</button></div><div className="table-scroll"><table><thead><tr><th>序号</th><th>问题</th><th>平台</th><th>设备</th><th>查询时间</th><th>转化目标</th><th>操作</th></tr></thead><tbody>{filteredRows.slice(0, 30).map((row, index) => <tr key={row.id}><td>{index + 1}</td><td><b>{row.keyword}</b></td><td>{normalizePlatform(row.platform)}</td><td>{index % 2 === 0 ? 'PC' : '移动端'}</td><td>{row.observed_at?.slice(0, 16)}</td><td><span className={`tag ${row.cited ? 'green' : 'blue'}`}>{row.cited ? '官网链接 / 品牌名' : row.mentioned ? '品牌名称' : '未收录'}</span></td><td><button className="table-action" onClick={() => setDetail(row)}>查看答案</button></td></tr>)}</tbody></table></div>{!filteredRows.length && <div className="empty-state"><Search /><b>暂无匹配数据</b><span>切换平台、设备或问题关键词后再试。</span></div>}</section>
+    <Modal open={!!detail} onClose={() => setDetail(null)} title="AI 搜索答案详情">{detail && <div className="detail-panel"><div className="detail-hero"><div><span>{normalizePlatform(detail.platform)} · {detail.observed_at?.slice(0, 16)}</span><h3>{detail.keyword}</h3></div><em className={`tag ${detail.mentioned ? 'green' : 'orange'}`}>{detail.mentioned ? `已收录 · TOP ${detail.rank}` : '未收录'}</em></div><dl><div><dt>转化目标</dt><dd>{detail.cited ? '官网链接、品牌名称' : '品牌名称'}</dd></div><div><dt>情感倾向</dt><dd>{detail.sentiment}</dd></div><div className="full"><dt>答案摘要</dt><dd>{detail.mentioned ? `本次回答提及了 ${customer.brand}，并将品牌能力与用户问题建立了明确关联。` : `本次回答暂未提及 ${customer.brand}，建议补充对应问题词的权威信源和结构化知识。`}</dd></div></dl><div className="form-actions"><button onClick={() => setDetail(null)}>关闭</button></div></div>}</Modal>
+  </main>
+}
+
+function ArticleManagePage() {
+  const customer = currentCustomer()
+  const statuses = ['全部文章', '待确认', '待审批', '审批驳回', '已确认', '待发布', '发布中', '已发布', '发布失败']
+  const [rows, setRows] = useState([])
+  const [status, setStatus] = useState('全部文章')
+  const [query, setQuery] = useState('')
+  const [type, setType] = useState('全部类型')
+  const [autoDays, setAutoDays] = useState(0)
+  const [selected, setSelected] = useState(new Set())
+  const [adding, setAdding] = useState(false)
+  const [detail, setDetail] = useState(null)
+  const [form, setForm] = useState({ title: '', itemType: '品牌解读', keyword: '', detail: '' })
+  const load = () => api(`/module-items?customerId=${customer.id}&module=article-manage`).then(setRows)
+  useEffect(() => { load() }, [customer.id])
+  const visible = rows.filter((row) => (status === '全部文章' || row.status === status) && (type === '全部类型' || row.item_type === type) && `${row.title}${row.detail}`.toLowerCase().includes(query.toLowerCase()))
+  const create = async (event) => {
+    event.preventDefault()
+    await api('/module-items', { method: 'POST', body: JSON.stringify({ customerId: customer.id, module: 'article-manage', title: form.title, itemType: form.itemType, status: '待确认', metric: '0 次', detail: `${form.keyword ? `关键词：${form.keyword}。` : ''}${form.detail}` }) })
+    setAdding(false); setForm({ title: '', itemType: '品牌解读', keyword: '', detail: '' }); load()
+  }
+  const updateStatus = async (row, next) => {
+    await api(`/module-items/${row.id}`, { method: 'PATCH', body: JSON.stringify({ status: next }) })
+    setDetail((current) => current?.id === row.id ? { ...current, status: next } : current); load()
+  }
+  const confirmSelected = async () => {
+    await Promise.all(rows.filter((row) => selected.has(row.id)).map((row) => api(`/module-items/${row.id}`, { method: 'PATCH', body: JSON.stringify({ status: '已确认' }) })))
+    setSelected(new Set()); load()
+  }
+  return <main className="content-page article-pipeline-page"><div className="article-page-head"><div><span className="section-kicker">CONTENT PRODUCTION PIPELINE</span><h1>文章管理</h1></div><label>设置自动确认时间：<input aria-label="自动确认天数" type="number" min="0" max="30" value={autoDays} onChange={(e) => setAutoDays(e.target.value)} /> 天</label></div><section className="data-card article-manager-card"><div className="status-tabs article-status-tabs">{statuses.map((item) => <button key={item} className={status === item ? 'active' : ''} onClick={() => setStatus(item)}>{item}<span>{item === '全部文章' ? rows.length : rows.filter((row) => row.status === item).length}</span></button>)}</div><div className="data-toolbar article-toolbar"><div className="filter-line"><div className="search-box"><Search size={17} /><input aria-label="搜索文章标题" placeholder="输入文章标题" value={query} onChange={(e) => setQuery(e.target.value)} /></div><select value={type} onChange={(e) => setType(e.target.value)}><option>全部类型</option><option>品牌解读</option><option>实操教程</option><option>行业观察</option></select><input className="date-input" aria-label="开始日期" type="date" /></div><div className="article-actions"><button className="primary-button" onClick={() => setAdding(true)}><Plus size={17} /> 新增文章</button><button className="filter-button" disabled={!selected.size} onClick={confirmSelected}>批量确认 ({selected.size})</button></div></div><div className="table-scroll"><table><thead><tr><th><input aria-label="全选文章" type="checkbox" checked={!!visible.length && visible.every((row) => selected.has(row.id))} onChange={(e) => setSelected(e.target.checked ? new Set(visible.map((row) => row.id)) : new Set())} /></th><th>封面</th><th>标题</th><th>任务类型</th><th>关键词</th><th>生成任务</th><th>文章生成时间</th><th>发布次数</th><th>创建人</th><th>文章状态</th><th>操作</th></tr></thead><tbody>{visible.map((row, index) => <tr key={row.id}><td><input aria-label={`选择文章 ${row.title}`} type="checkbox" checked={selected.has(row.id)} onChange={(e) => setSelected((current) => { const next = new Set(current); e.target.checked ? next.add(row.id) : next.delete(row.id); return next })} /></td><td><div className={`article-cover tone-${index % 4}`}><FileChartColumn /></div></td><td><b>{row.title}</b></td><td>{row.item_type}</td><td>{row.detail?.match(/关键词：([^。]+)/)?.[1] || 'GEO品牌增长'}</td><td>内容资产批次 #{String(row.id).padStart(3, '0')}</td><td>{row.created_at?.slice(0, 16)}</td><td>{row.metric || '0 次'}</td><td>AI运营官</td><td><span className={`tag ${row.status === '已发布' ? 'green' : row.status.includes('失败') || row.status.includes('驳回') ? 'orange' : 'blue'}`}>{row.status}</span></td><td><button className="table-action" onClick={() => setDetail(row)}>查看</button></td></tr>)}</tbody></table></div>{!visible.length && <div className="empty-state"><FileChartColumn /><b>当前状态暂无文章</b><span>新增文章后会先进入待确认队列。</span></div>}</section>
+    <Modal open={adding} onClose={() => setAdding(false)} title="新增文章"><form className="modal-form" onSubmit={create}><label>文章标题<input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label><label>任务类型<select value={form.itemType} onChange={(e) => setForm({ ...form, itemType: e.target.value })}><option>品牌解读</option><option>实操教程</option><option>行业观察</option></select></label><label>关键词<input value={form.keyword} onChange={(e) => setForm({ ...form, keyword: e.target.value })} /></label><label className="full">内容摘要<textarea required rows="5" value={form.detail} onChange={(e) => setForm({ ...form, detail: e.target.value })} /></label><div className="form-actions"><button type="button" onClick={() => setAdding(false)}>取消</button><button className="primary-button" type="submit">保存到待确认</button></div></form></Modal>
+    <Modal open={!!detail} onClose={() => setDetail(null)} title="文章审核与流转">{detail && <div className="detail-panel"><div className="detail-hero"><div><span>{detail.item_type}</span><h3>{detail.title}</h3></div><em className="tag blue">{detail.status}</em></div><dl><div><dt>生成任务</dt><dd>内容资产批次 #{String(detail.id).padStart(3, '0')}</dd></div><div><dt>发布次数</dt><dd>{detail.metric}</dd></div><div className="full"><dt>文章摘要</dt><dd>{detail.detail}</dd></div></dl><div className="form-actions"><button onClick={() => setDetail(null)}>关闭</button>{detail.status !== '已发布' && <button className="filter-button" onClick={() => updateStatus(detail, '待审批')}>提交审批</button>}<button className="primary-button" onClick={() => updateStatus(detail, detail.status === '待审批' ? '已确认' : detail.status === '已确认' ? '待发布' : '已发布')}>流转到下一状态</button></div></div>}</Modal>
+  </main>
+}
+
+function MediaAuthPage() {
+  const customer = currentCustomer()
+  const tabs = ['新闻媒体', '自媒体矩阵', 'B2B 行业网站']
+  const [rows, setRows] = useState([])
+  const [tab, setTab] = useState(tabs[0])
+  const [detail, setDetail] = useState(null)
+  const load = () => api(`/module-items?customerId=${customer.id}&module=account-auth`).then(setRows)
+  useEffect(() => { load() }, [customer.id])
+  const directory = [
+    ['华东产业资讯', '新闻媒体', '省市级媒体'], ['城市商业观察', '新闻媒体', '省市级媒体'], ['科技产业参考', '新闻媒体', '商业媒体'], ['财经品牌周刊', '新闻媒体', '商业媒体'], ['创业前线', '新闻媒体', '商业媒体'], ['产业数字化网', '新闻媒体', '商业媒体'],
+    ['抖音企业号', '自媒体矩阵', '内容平台'], ['小红书企业号', '自媒体矩阵', '内容平台'], ['视频号', '自媒体矩阵', '自有账号'], ['百家号', '自媒体矩阵', '内容平台'], ['头条号', '自媒体矩阵', '内容平台'],
+    ['行业门户专区', 'B2B 行业网站', '行业平台'], ['供应链服务平台', 'B2B 行业网站', '行业平台'], ['品牌知识官网', 'B2B 行业网站', '自有站点'],
+  ].filter(([title]) => !rows.some((row) => row.title === title)).map(([title, item_type, metric], index) => ({ id: `directory-${index}`, title, item_type, metric, status: '可接入', detail: '媒体资源目录，开通后可进入内容发布和结果回查流程。', directory: true }))
+  const visible = [...rows, ...directory].filter((row) => row.item_type === tab)
+  const groups = tab === '新闻媒体' ? ['权威媒体', '省市级媒体', '商业媒体'] : tab === '自媒体矩阵' ? ['自有账号', '内容平台'] : ['自有站点', '行业平台']
+  const authorize = async (row) => { await api(`/module-items/${row.id}`, { method: 'PATCH', body: JSON.stringify({ status: '已授权' }) }); setDetail(null); load() }
+  return <main className="content-page media-auth-page"><div className="page-heading"><div><span className="section-kicker">TRUSTED SOURCE NETWORK</span><h1>账号与授权</h1><p>管理新闻媒体、自媒体矩阵与 B2B 行业网站的信源能力。</p></div><span className="certified-pill"><ShieldCheck size={16} /> 已接入 {rows.filter((row) => row.status === '已授权').length} 个信源</span></div><section className="media-library"><div className="settings-tabs">{tabs.map((item) => <button className={tab === item ? 'active' : ''} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>{groups.map((group, groupIndex) => { const groupRows = visible.filter((row) => row.metric === group || (groupIndex === 0 && !groups.includes(row.metric))); return <section className="media-group" key={group}><div className="media-group-title"><span className={`media-level level-${groupIndex}`}>{groupIndex + 1}</span><div><b>{group}</b><em>{groupIndex === 0 ? '优先建立高可信品牌信源' : '扩展行业与地域覆盖'}</em></div><span>{groupRows.length} 个</span></div><div className="media-logo-grid">{groupRows.map((row, index) => <button key={row.id} onClick={() => setDetail(row)}><span className={`media-logo tone-${index % 4}`}>{row.title.slice(0, 2)}</span><span><b>{row.title}</b><em>{row.detail}</em></span><i className={row.status === '已授权' ? 'authorized' : ''}>{row.status}</i></button>)}{!groupRows.length && <div className="media-empty">该分组暂无可用信源</div>}</div></section>})}</section><Modal open={!!detail} onClose={() => setDetail(null)} title="信源授权详情">{detail && <div className="detail-panel"><div className="detail-hero"><div><span>{detail.metric} · {detail.item_type}</span><h3>{detail.title}</h3></div><em className={`tag ${detail.status === '已授权' ? 'green' : 'orange'}`}>{detail.status}</em></div><dl><div><dt>信源类型</dt><dd>{detail.item_type}</dd></div><div><dt>接入级别</dt><dd>{detail.metric}</dd></div><div className="full"><dt>能力说明</dt><dd>{detail.detail}</dd></div></dl><div className="form-actions"><button onClick={() => setDetail(null)}>关闭</button>{detail.directory ? <button className="filter-button" onClick={() => setDetail(null)}>已了解接入方式</button> : detail.status !== '已授权' && <button className="primary-button" onClick={() => authorize(detail)}>模拟完成授权</button>}</div></div>}</Modal></main>
 }
 
 const moduleConfigs = {
@@ -481,10 +565,10 @@ function ProtectedApp() {
     '/geo/images': <ModulePage module="images" />,
     '/geo/video-script': <ModulePage module="video-script" />,
     '/geo/templates': <ModulePage module="templates" />,
-    '/geo/account-auth': <ModulePage module="account-auth" />,
+    '/geo/account-auth': <MediaAuthPage />,
     '/geo/prompts': <ModulePage module="prompts" />,
     '/geo/article-batch': <ModulePage module="article-batch" />,
-    '/geo/article-manage': <ModulePage module="article-manage" />,
+    '/geo/article-manage': <ArticleManagePage />,
     '/geo/stations': <ModulePage module="stations" />,
     '/geo/records': <ModulePage module="records" />,
     '/geo/video-create': <ModulePage module="video-create" />,
