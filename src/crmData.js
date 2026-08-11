@@ -27,7 +27,7 @@ export const seedCases = [
   {
     id: 'CASE-001', slug: 'zhiyan-ai', customerId: 1, brand: '智焰 AI', company: '智焰科技有限公司', industry: 'AI 科技', region: '杭州市', openedAt: '2026-08-05', enabled: true,
     title: '从“被搜索”到“被引用”的 GEO 内容资产建设', summary: '围绕企业 AI 内容营销与本地决策词，统一品牌身份、知识资产和可验证信源。', mentionRate: 69.2, citationProbability: 22.2, keywords: 5, samples: 26, includedPoints: 42, cycle: '30 天演示周期',
-    coreProducts: ['AI 内容营销', '企业 GEO', 'AI 搜索排名优化', '品牌大模型推荐', '杭州 AI 营销'], highlights: ['建立统一品牌实体页', '覆盖 5 个 AI 平台样本', '问题词与地域词同步监测'], tone: 'violet', evidenceRoute: '/geo/evidence/1/26',
+    coreProducts: ['AI 内容营销', '企业 GEO', 'AI 搜索排名优化', '品牌大模型推荐', '杭州 AI 营销'], highlights: ['建立统一品牌实体页', '覆盖 5 个 AI 平台样本', '问题词与地域词同步监测'], tone: 'violet', evidenceExternalId: 'doubao-38436432341358082',
     platforms: [{ name: 'DeepSeek', samples: 5, mentions: 3 }, { name: '豆包', samples: 6, mentions: 5 }, { name: '元宝', samples: 5, mentions: 4 }, { name: '文心一言', samples: 5, mentions: 3 }, { name: '千问', samples: 5, mentions: 3 }],
     trend: [{ date: '第1周', mentionRate: 46, citationProbability: 9 }, { date: '第2周', mentionRate: 54, citationProbability: 12 }, { date: '第3周', mentionRate: 62, citationProbability: 17 }, { date: '第4周', mentionRate: 69.2, citationProbability: 22.2 }],
     questions: [{ keyword: '企业 GEO 怎么做', platform: '豆包', device: 'PC', target: '智焰 AI', saved: true }, { keyword: '品牌如何被大模型推荐', platform: 'DeepSeek', device: '移动端', target: '品牌名称', saved: false }, { keyword: '杭州 AI 营销公司', platform: '千问', device: 'PC', target: '品牌名称', saved: false }, { keyword: 'AI 搜索排名优化', platform: '元宝', device: '移动端', target: '未形成引用', saved: false }],
@@ -108,4 +108,20 @@ export function caseCockpitRoute(slug) {
 
 export function findCaseBySlug(slug) {
   return seedCases.find((item) => item.slug === slug) || null
+}
+
+export function findCaseEvidenceRoute(item, observations = []) {
+  if (!item?.customerId || !item?.evidenceExternalId) return ''
+  const record = observations.find((row) => row.external_id === item.evidenceExternalId && Number(row.customer_id) === Number(item.customerId))
+  return Number.isInteger(Number(record?.id)) && Number(record.id) > 0
+    ? `/geo/evidence/${item.customerId}/${record.id}`
+    : ''
+}
+
+export function initialCaseVisibility(overrides = {}) {
+  return Object.fromEntries(seedCases.map((row) => [row.slug, typeof overrides?.[row.slug] === 'boolean' ? overrides[row.slug] : row.enabled]))
+}
+
+export function cockpitViewKey(view) {
+  return view === '问题词覆盖视图' ? 'coverage' : 'report'
 }

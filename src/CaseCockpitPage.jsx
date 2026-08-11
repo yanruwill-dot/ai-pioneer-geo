@@ -7,7 +7,6 @@ import {
   BarChart3,
   CheckCircle2,
   Database,
-  ExternalLink,
   FileSearch,
   Gauge,
   Search,
@@ -17,7 +16,8 @@ import {
 } from 'lucide-react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, setCurrentCustomer } from './api.js'
-import { findCaseBySlug } from './crmData.js'
+import { caseCockpitRoute, cockpitViewKey, findCaseBySlug, findCaseEvidenceRoute } from './crmData.js'
+import { EVIDENCE_RETURN_STORAGE_KEY } from './evidence.js'
 
 export function CaseCockpitPage({ caseSlug }) {
   const [, navigate] = useLocation()
@@ -25,10 +25,26 @@ export function CaseCockpitPage({ caseSlug }) {
   const [platform, setPlatform] = useState('全部平台')
   const [query, setQuery] = useState('')
   const [view, setView] = useState('AI搜索营销报表')
+  const [evidenceRoute, setEvidenceRoute] = useState('')
+  const [evidenceLoaded, setEvidenceLoaded] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'auto' }) }, [caseSlug])
+  useEffect(() => {
+    let active = true
+    setEvidenceRoute('')
+    setEvidenceLoaded(false)
+    if (!item?.customerId || !item.evidenceExternalId) {
+      setEvidenceLoaded(true)
+      return () => { active = false }
+    }
+    api(`/observations?customerId=${item.customerId}`)
+      .then((rows) => { if (active) setEvidenceRoute(findCaseEvidenceRoute(item, rows)) })
+      .catch(() => { if (active) setEvidenceRoute('') })
+      .finally(() => { if (active) setEvidenceLoaded(true) })
+    return () => { active = false }
+  }, [caseSlug, item])
 
   const questions = useMemo(() => item ? item.questions.filter((row) => {
     return (platform === '全部平台' || row.platform === platform)
@@ -39,6 +55,12 @@ export function CaseCockpitPage({ caseSlug }) {
 
   const totalMentions = item.platforms.reduce((sum, row) => sum + row.mentions, 0)
   const platformNames = [...new Set(item.questions.map((row) => row.platform))]
+  const viewKey = cockpitViewKey(view)
+  const openEvidence = () => {
+    if (!evidenceRoute) return
+    try { window.sessionStorage.setItem(EVIDENCE_RETURN_STORAGE_KEY, caseCockpitRoute(item.slug)) } catch {}
+    navigate(evidenceRoute)
+  }
   const enterGeo = async () => {
     if (!item.customerId) return
     setBusy(true)
@@ -76,15 +98,19 @@ export function CaseCockpitPage({ caseSlug }) {
         <article><i className="orange"><BarChart3 /></i><div><span>覆盖平台</span><b>{item.platforms.length}</b><small>演示案例当前范围</small></div></article>
       </section>
 
-      <section className="case-cockpit-analysis">
+      {viewKey === 'report' ? <section className="case-cockpit-analysis" data-view="report">
         <article className="case-trend-card"><header><div><span>VISIBILITY TREND</span><h2>提及与引用趋势</h2></div><em>近 4 周演示变化</em></header><div className="case-trend-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={item.trend}><defs><linearGradient id="caseMention" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4166f5" stopOpacity={0.3}/><stop offset="95%" stopColor="#4166f5" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#edf0fa" vertical={false} /><XAxis dataKey="date" axisLine={false} tickLine={false} /><YAxis domain={[0, 100]} unit="%" axisLine={false} tickLine={false} /><Tooltip formatter={(value) => `${value}%`} /><Area type="monotone" dataKey="mentionRate" name="AI 提及率" stroke="#4166f5" strokeWidth={3} fill="url(#caseMention)" /><Area type="monotone" dataKey="citationProbability" name="被引用概率" stroke="#9a59e5" strokeWidth={2} fill="transparent" /></AreaChart></ResponsiveContainer></div></article>
         <article className="case-term-cloud"><header><span>EXPANDED QUERY SCENES</span><h2>拓展词出现的场景</h2></header><div>{item.coreProducts.map((term, index) => <span key={term} style={{ '--size': `${12 + (index % 3) * 4}px`, '--delay': `${index * 35}ms` }}>{term}</span>)}{item.questions.map((row, index) => <span key={row.keyword} className="question-term" style={{ '--size': `${11 + (index % 2) * 3}px` }}>{row.keyword}</span>)}</div><p>词云来自本案例演示问题词，不代表平台搜索量或模型推荐结论。</p></article>
-      </section>
+      </section> : <section className="case-question-coverage" data-view="coverage">
+        <header><div><span>QUESTION COVERAGE MAP</span><h2>问题词覆盖视图</h2></div><em>{item.questions.length} 个问题词 · {platformNames.length} 个平台</em></header>
+        <div>{item.questions.map((row) => <article key={`${row.platform}-${row.keyword}`}><span>{row.platform}</span><h3>{row.keyword}</h3><p>{row.device} · 转化目标：{row.target}</p><em className={row.saved ? 'ready' : ''}>{row.saved ? '已保存真实快照' : '待补充原回答'}</em></article>)}</div>
+        <p>此视图按问题词展示平台、设备、转化目标和凭证完整度；与趋势报表是不同的分析视角。</p>
+      </section>}
 
       <section className="case-query-report">
         <header><div><span>SEARCH OBSERVATION REPORT</span><h2>问题词与凭证入口</h2></div><div className="case-query-filters"><select aria-label="筛选采样平台" value={platform} onChange={(event) => setPlatform(event.target.value)}><option>全部平台</option>{platformNames.map((name) => <option key={name}>{name}</option>)}</select><label><Search /><input aria-label="搜索案例问题词" placeholder="请输入问题" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div></header>
         <div className="case-report-note"><ShieldCheck /> 案例指标为演示数据；只有标注“已保存真实快照”的记录可以打开原回答凭证。</div>
-        <div className="table-scroll"><table><thead><tr><th>序号</th><th>问题词</th><th>平台</th><th>设备</th><th>转化目标</th><th>凭证状态</th><th>操作</th></tr></thead><tbody>{questions.map((row, index) => <tr key={`${row.platform}-${row.keyword}`}><td>{index + 1}</td><td><b>{row.keyword}</b></td><td>{row.platform}</td><td>{row.device}</td><td><span className="tag blue">{row.target}</span></td><td>{row.saved ? <span className="case-evidence-ready"><CheckCircle2 /> 已保存真实快照</span> : <span className="case-evidence-missing"><FileSearch /> 未保存原回答</span>}</td><td>{row.saved && item.evidenceRoute ? <button className="table-action evidence-action" onClick={() => navigate(item.evidenceRoute)}>快照凭证</button> : <button className="table-action" disabled title="没有保存可回查的回答正文">暂无凭证</button>}</td></tr>)}</tbody></table></div>
+        <div className="table-scroll"><table><thead><tr><th>序号</th><th>问题词</th><th>平台</th><th>设备</th><th>转化目标</th><th>凭证状态</th><th>操作</th></tr></thead><tbody>{questions.map((row, index) => <tr key={`${row.platform}-${row.keyword}`}><td>{index + 1}</td><td><b>{row.keyword}</b></td><td>{row.platform}</td><td>{row.device}</td><td><span className="tag blue">{row.target}</span></td><td>{row.saved ? <span className="case-evidence-ready"><CheckCircle2 /> 已保存真实快照</span> : <span className="case-evidence-missing"><FileSearch /> 未保存原回答</span>}</td><td>{row.saved && evidenceRoute ? <button className="table-action evidence-action" onClick={openEvidence}>快照凭证</button> : <button className="table-action" disabled title={row.saved ? '凭证记录读取中或已失效' : '没有保存可回查的回答正文'}>{row.saved && !evidenceLoaded ? '读取中…' : '暂无凭证'}</button>}</td></tr>)}</tbody></table></div>
         {!questions.length && <div className="empty-state"><Search /><b>没有匹配的问题词</b><span>调整平台或关键词后再试。</span></div>}
       </section>
 

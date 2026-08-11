@@ -373,6 +373,18 @@ button:disabled { cursor: not-allowed; }
 .case-term-cloud > div span { padding: 7px 12px; border-radius: 18px; color: #5069d2; background: #edf1ff; font-size: var(--size); font-weight: 700; }
 .case-term-cloud > div span.question-term { color: #8a57c6; background: #f5efff; }
 .case-term-cloud > p { margin: 0; color: #98a1b1; font-size: 8px; line-height: 1.5; text-align: center; }
+.case-question-coverage { margin-top: 17px; padding: 19px; border: 1px solid #e0e5f1; border-radius: 14px; background: linear-gradient(145deg,#fff,#f8f9ff); box-shadow: 0 8px 22px rgba(40,55,96,.05); }
+.case-question-coverage > header { display: flex; align-items: flex-end; justify-content: space-between; gap: 15px; }
+.case-question-coverage header span { color: #7789c3; font-size: 8px; letter-spacing: .12em; }
+.case-question-coverage h2 { margin: 4px 0 0; font-size: 15px; }
+.case-question-coverage header em { color: #7d88a0; font-size: 9px; font-style: normal; }
+.case-question-coverage > div { margin-top: 15px; display: grid; grid-template-columns: repeat(4,1fr); gap: 11px; }
+.case-question-coverage article { min-height: 135px; padding: 15px; border: 1px solid #e1e6f2; border-radius: 12px; background: white; }
+.case-question-coverage article > span { display: inline-block; padding: 4px 8px; border-radius: 12px; color: #516bd2; background: #edf1ff; font-size: 8px; }
+.case-question-coverage h3 { margin: 12px 0 6px; color: #2e3d59; font-size: 12px; line-height: 1.5; }
+.case-question-coverage article p { margin: 0; color: #8b96a9; font-size: 8px; line-height: 1.5; }
+.case-question-coverage article em { display: block; margin-top: 12px; color: #9a7480; font-size: 8px; font-style: normal; }.case-question-coverage article em.ready { color: #138877; }
+.case-question-coverage > p { margin: 13px 0 0; color: #8d98aa; font-size: 8px; line-height: 1.6; }
 .case-query-report { margin-top: 17px; padding: 18px 19px 0; overflow: hidden; }
 .case-query-filters { display: flex; gap: 8px; }
 .case-query-filters select,.case-query-filters label { height: 36px; border: 1px solid #e0e5ef; border-radius: 8px; background: white; }
@@ -1040,6 +1052,8 @@ td b { color: #333d53; font-weight: 600; }
   .case-cockpit-hero { padding: 20px 14px; }
   .case-cockpit-title h1 { font-size: 23px; }
   .case-platform-list,.case-cockpit-kpis { grid-template-columns: 1fr; }
+  .case-question-coverage > header { align-items: flex-start; flex-direction: column; }
+  .case-question-coverage > div { grid-template-columns: 1fr; }
   .case-query-filters { width: 100%; flex-direction: column; }
   .case-query-filters select,.case-query-filters label,.case-query-filters input { width: 100%; }
   .case-cockpit-footer { align-items: stretch; flex-direction: column; }

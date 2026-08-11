@@ -42,3 +42,10 @@ export function snapshotRoute(id, customerId) {
     ? `/geo/evidence/${numericCustomerId}/${numericId}`
     : '/geo/report'
 }
+
+export const EVIDENCE_RETURN_STORAGE_KEY = 'ai-pioneer-evidence-return-v1'
+
+export function safeEvidenceReturnRoute(value) {
+  const route = String(value || '')
+  return /^\/geo-dashboard\/index-1\/[a-z0-9-]+$/.test(route) ? route : '/geo/report'
+}

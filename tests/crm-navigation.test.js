@@ -3,17 +3,20 @@ import assert from 'node:assert/strict'
 import {
   CRM_ROUTE_META,
   caseCockpitRoute,
+  cockpitViewKey,
   crmTitleFor,
   findCaseBySlug,
+  findCaseEvidenceRoute,
   filterCases,
   filterOrders,
   filterTransactions,
+  initialCaseVisibility,
   seedCases,
   seedOrders,
   seedTransactions,
   summarizeFinance,
 } from '../src/crmData.js'
-import { safeHttpUrl, snapshotFingerprint, snapshotRoute } from '../src/evidence.js'
+import { safeEvidenceReturnRoute, safeHttpUrl, snapshotFingerprint, snapshotRoute } from '../src/evidence.js'
 
 test('CRM exposes five unique business routes and matching titles', () => {
   const routes = Object.keys(CRM_ROUTE_META)
@@ -56,6 +59,21 @@ test('every GEO case has a unique, directly addressable cockpit route', () => {
   assert.equal(caseCockpitRoute('missing-case'), '/crm/cases')
 })
 
+test('case cockpit resolves evidence by stable external id and exposes distinct views', () => {
+  const item = seedCases[0]
+  assert.equal(findCaseEvidenceRoute(item, [{ id: 31, customer_id: 1, external_id: item.evidenceExternalId }]), '/geo/evidence/1/31')
+  assert.equal(findCaseEvidenceRoute(item, [{ id: 26, customer_id: 2, external_id: item.evidenceExternalId }]), '')
+  assert.equal(cockpitViewKey('AI搜索营销报表'), 'report')
+  assert.equal(cockpitViewKey('问题词覆盖视图'), 'coverage')
+})
+
+test('case visibility state preserves saved switches and rejects unknown values', () => {
+  const visibility = initialCaseVisibility({ 'zhiyan-ai': false, unknown: false, 'chengming-class': '否' })
+  assert.equal(visibility['zhiyan-ai'], false)
+  assert.equal(visibility['chengming-class'], true)
+  assert.equal(Object.hasOwn(visibility, 'unknown'), false)
+})
+
 test('snapshot routes and consistency codes are stable and field-sensitive', () => {
   const row = { id: 7, customer_id: 1, platform: '千问', keyword: '企业 GEO 怎么做', rank: 2, mentioned: 1, cited: 1, sentiment: '正向', device: 'PC', observed_at: '2026-08-05 09:00:00' }
   assert.equal(snapshotRoute(7, 1), '/geo/evidence/1/7')
@@ -66,4 +84,6 @@ test('snapshot routes and consistency codes are stable and field-sensitive', () 
   assert.notEqual(snapshotFingerprint(row), snapshotFingerprint({ ...row, device: '移动端' }))
   assert.equal(safeHttpUrl('https://www.doubao.com/chat/1'), 'https://www.doubao.com/chat/1')
   assert.equal(safeHttpUrl('javascript:alert(1)'), '')
+  assert.equal(safeEvidenceReturnRoute('/geo-dashboard/index-1/zhiyan-ai'), '/geo-dashboard/index-1/zhiyan-ai')
+  assert.equal(safeEvidenceReturnRoute('https://evil.example/'), '/geo/report')
 })

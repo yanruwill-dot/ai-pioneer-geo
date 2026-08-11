@@ -10,6 +10,7 @@ globalThis.localStorage = {
 globalThis.location = { origin: 'http://localhost' }
 
 const { demoApi } = await import('../src/demoApi.js')
+const { findCaseEvidenceRoute, seedCases } = await import('../src/crmData.js')
 
 beforeEach(() => storage.clear())
 
@@ -107,4 +108,29 @@ test('Pages demo ships the same real Doubao evidence without leaking full text i
   assert.match(detail.answer_text, /四、颜汝与智焰科技专项核实说明/)
   assert.equal(detail.reference_count, 18)
   assert.equal(detail.customer_brand, '智焰 AI')
+})
+
+test('Pages demo upgrades old stored observations and keeps the cockpit voucher on the real record', async () => {
+  await demoApi('/observations', {
+    method: 'POST',
+    body: JSON.stringify({ customerId: 1, platform: '测试平台', keyword: '触发持久化', mentioned: 0, observedAt: '2026-08-08 12:00:00' }),
+  })
+  const key = 'ai_pioneer_pages_demo_db_v2'
+  const oldState = JSON.parse(storage.get(key))
+  oldState.observations = Array.from({ length: 30 }, (_, index) => ({
+    id: index + 1,
+    customer_id: 1,
+    platform: '旧平台',
+    keyword: `旧采样-${index + 1}`,
+    mentioned: 0,
+    cited: 0,
+    device: 'PC',
+    observed_at: '2026-08-01 09:00:00',
+  }))
+  storage.set(key, JSON.stringify(oldState))
+
+  const list = await demoApi('/observations?customerId=1')
+  const recorded = list.find((row) => row.external_id === 'doubao-38436432341358082')
+  assert.equal(recorded.id, 31)
+  assert.equal(findCaseEvidenceRoute(seedCases[0], list), '/geo/evidence/1/31')
 })

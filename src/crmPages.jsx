@@ -30,6 +30,7 @@ import {
   filterCases,
   filterOrders,
   filterTransactions,
+  initialCaseVisibility,
   seedCases,
   seedOrders,
   seedTransactions,
@@ -38,12 +39,13 @@ import {
 
 const money = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 0 })
 const ORDER_STORAGE_KEY = 'ai-pioneer-crm-orders-v1'
+const CASE_VISIBILITY_STORAGE_KEY = 'ai-pioneer-crm-case-visibility-v1'
 
-function usePersistentRows(key, seed) {
+function usePersistentRows(key, seed, normalize = (value) => value) {
   const [rows, setRows] = useState(() => {
     try {
       const saved = window.localStorage.getItem(key)
-      return saved ? JSON.parse(saved) : seed
+      return saved ? normalize(JSON.parse(saved)) : seed
     } catch {
       return seed
     }
@@ -180,7 +182,7 @@ export function CrmCases() {
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState({ region: '全部区域', query: '', industry: '全部行业', enabled: '全部状态' })
   const [filters, setFilters] = useState(draft)
-  const [enabled, setEnabled] = useState(() => Object.fromEntries(seedCases.map((row) => [row.slug, row.enabled])))
+  const [enabled, setEnabled] = usePersistentRows(CASE_VISIBILITY_STORAGE_KEY, initialCaseVisibility(), initialCaseVisibility)
   const industries = useMemo(() => ['全部行业', ...new Set(seedCases.map((row) => row.industry))], [])
   const regions = useMemo(() => ['全部区域', ...new Set(seedCases.map((row) => row.region))], [])
   const rows = seedCases.map((row) => ({ ...row, enabled: enabled[row.slug] }))
@@ -211,7 +213,7 @@ export function CrmCases() {
         <header><div><span>{item.id}</span><h2>{item.company}</h2><small>{item.brand} · {item.industry}</small></div><button onClick={() => navigate(caseCockpitRoute(item.slug))}>查看驾驶舱 <ArrowUpRight /></button></header>
         <div className="case-card-products"><b>核心产品词</b><p>{item.coreProducts.join('、')}</p></div>
         <dl><div><dt><MapPin /> 所在区域</dt><dd>{item.region}</dd></div><div><dt><CalendarDays /> 开通日期</dt><dd>{item.openedAt}</dd></div><div><dt><Database /> 纳入要点</dt><dd>{item.includedPoints}</dd></div></dl>
-        <footer><span>{item.enabled ? '已启用展示' : '已暂停展示'}</span><button role="switch" aria-checked={item.enabled} aria-label={`${item.brand}案例展示状态`} className={item.enabled ? 'on' : ''} onClick={() => setEnabled({ ...enabled, [item.slug]: !item.enabled })}><i /></button></footer>
+        <footer><span>{item.enabled ? '已启用展示' : '已暂停展示'}</span><button role="switch" aria-checked={item.enabled} aria-label={`${item.brand}案例展示状态`} className={item.enabled ? 'on' : ''} onClick={() => setEnabled((current) => ({ ...current, [item.slug]: !item.enabled }))}><i /></button></footer>
       </article>)}</section>
       {!visible.length && <div className="empty-state"><Search /><b>没有匹配案例</b><span>调整区域、产品词、行业或状态后再试。</span></div>}
     </section>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'wouter'
 import { ArrowLeft, BadgeCheck, CheckCircle2, ClipboardCheck, Copy, ExternalLink, FileSearch, Link2, ShieldCheck } from 'lucide-react'
 import { api, currentCustomer, isStaticDemo } from './api.js'
-import { safeHttpUrl, snapshotFingerprint, snapshotRoute } from './evidence.js'
+import { EVIDENCE_RETURN_STORAGE_KEY, safeEvidenceReturnRoute, safeHttpUrl, snapshotFingerprint, snapshotRoute } from './evidence.js'
 
 function resultLabel(row) {
   if (row?.answer_text && row.mentioned) return '已保存原回答正文，并检出目标品牌提及'
@@ -27,6 +27,10 @@ export function EvidenceSnapshotPage({ snapshotId, customerId }) {
   const [row, setRow] = useState(null)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  let storedReturnRoute = ''
+  try { storedReturnRoute = window.sessionStorage?.getItem(EVIDENCE_RETURN_STORAGE_KEY) || '' } catch {}
+  const returnRoute = safeEvidenceReturnRoute(storedReturnRoute)
+  const returnLabel = returnRoute === '/geo/report' ? '返回报表' : '返回案例驾驶舱'
 
   useEffect(() => {
     let active = true
@@ -42,7 +46,7 @@ export function EvidenceSnapshotPage({ snapshotId, customerId }) {
     return () => { active = false }
   }, [scopedCustomerId, snapshotId])
 
-  if (error) return <main className="content-page evidence-page"><section className="evidence-missing"><FileSearch /><h1>没有找到这条快照凭证</h1><p>{error}</p><button className="primary-button" onClick={() => navigate('/geo/report')}>返回 AI 搜索营销报表</button></section></main>
+  if (error) return <main className="content-page evidence-page"><section className="evidence-missing"><FileSearch /><h1>没有找到这条快照凭证</h1><p>{error}</p><button className="primary-button" onClick={() => navigate(returnRoute)}>{returnLabel}</button></section></main>
   if (!row) return <div className="page-loader"><ClipboardCheck /> 正在读取采样凭证</div>
 
   const sourceUrl = safeHttpUrl(row.source_url)
@@ -67,7 +71,7 @@ export function EvidenceSnapshotPage({ snapshotId, customerId }) {
   }
 
   return <main className="content-page evidence-page">
-    <div className="evidence-page-heading"><button onClick={() => navigate('/geo/report')}><ArrowLeft /> 返回报表</button><div><span>GEO OBSERVATION EVIDENCE</span><h1>采样快照凭证</h1><p>{hasAnswer ? '回查已保存的大模型问题、回答正文与原始会话。' : '回查本次采样保存的问题、结果与监测元数据。'}</p></div><button className="evidence-copy" onClick={copyLink}><Copy /> {copied ? '凭证链接已复制' : '复制凭证链接'}</button></div>
+    <div className="evidence-page-heading"><button onClick={() => navigate(returnRoute)}><ArrowLeft /> {returnLabel}</button><div><span>GEO OBSERVATION EVIDENCE</span><h1>采样快照凭证</h1><p>{hasAnswer ? '回查已保存的大模型问题、回答正文与原始会话。' : '回查本次采样保存的问题、结果与监测元数据。'}</p></div><button className="evidence-copy" onClick={copyLink}><Copy /> {copied ? '凭证链接已复制' : '复制凭证链接'}</button></div>
     <section className="evidence-certificate">
       <header><div className="evidence-seal"><ShieldCheck /></div><div><span>AI先行者 · GEO 数据凭证</span><h2>{row.keyword}</h2><p>{row.platform} · {captureTime}</p></div><em><BadgeCheck /> 已定位工作区记录 #{row.id}</em></header>
 
@@ -90,7 +94,7 @@ export function EvidenceSnapshotPage({ snapshotId, customerId }) {
         <div><dt>监测品牌</dt><dd>{customerBrand}</dd></div><div><dt>采样平台</dt><dd>{row.platform}</dd></div><div><dt>采集时间</dt><dd>{captureTime}</dd></div><div><dt>采样设备</dt><dd>{row.device || '当前记录未保存'}</dd></div><div><dt>品牌排名</dt><dd>{row.rank ? `TOP ${row.rank}` : '平台未返回'}</dd></div><div><dt>情感标签</dt><dd>{row.sentiment || '平台未返回'}</dd></div><div><dt>转化目标</dt><dd>{row.conversion_target || '未单独保存'}</dd></div><div><dt>原会话链接</dt><dd>{sourceUrl ? '已保存可访问链接' : '未保存'}</dd></div>
       </dl>
       <section className="evidence-boundary"><ShieldCheck /><div><b>证据边界</b><p>{hasAnswer ? <>回答正文保存自用户已登录的平台历史会话，原始链接用于回查。此页不是平台官方签章、数字签名或第三方存证；模型回答也可能存在错误。“参考 {referenceCount} 篇资料”只记录页面当时显示的数量，不等同于目标品牌或某个网页被引用。</> : <>本凭证仅证明工作区保存了这条结构化监测记录，未保存当时的回答正文、引用明细或原会话链接，不能据此还原模型原话，也不是平台官方签章、数字签名或第三方存证。</>}</p></div></section>
-      <footer><div><span>工作区一致性校验码</span><b>{fingerprint}</b></div><div><span>记录归属</span><b>{customerCompany}</b></div><button onClick={() => navigate('/geo/report')}>回到对应报表 <ExternalLink /></button></footer>
+      <footer><div><span>工作区一致性校验码</span><b>{fingerprint}</b></div><div><span>记录归属</span><b>{customerCompany}</b></div><button onClick={() => navigate(returnRoute)}>{returnRoute === '/geo/report' ? '回到对应报表' : '回到案例驾驶舱'} <ExternalLink /></button></footer>
     </section>
   </main>
 }
