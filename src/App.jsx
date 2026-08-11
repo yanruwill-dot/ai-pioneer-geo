@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { Redirect, Route, Router, Switch, useLocation } from 'wouter'
+import { useHashLocation } from 'wouter/use-hash-location'
 import {
   BadgeCheck,
   BarChart3,
@@ -614,7 +615,8 @@ function AppContent() {
 
 function App() {
   const base = import.meta.env.BASE_URL === '/' ? '' : import.meta.env.BASE_URL.replace(/\/$/, '')
-  return <Router base={base}><AppContent /></Router>
+  const routerProps = isStaticDemo ? { hook: useHashLocation } : { base }
+  return <Router {...routerProps}><AppContent /></Router>
 }
 
 export default App
