@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import request from 'supertest'
 import { createApp } from '../server/app.js'
 import { createDatabase, dashboardFor } from '../server/database.js'
+import { buildGeoInsights, normalizeObservedAt } from '../shared/geoInsights.js'
 
 const database = createDatabase(':memory:')
 const app = createApp({ database })
@@ -68,6 +69,69 @@ test('dashboard metrics are derived from observation rows', () => {
   assert.equal(dashboard.words, 5)
   assert.ok(dashboard.visibilityRate > 0 && dashboard.visibilityRate <= 100)
   assert.equal(dashboard.platformStats.length, 5)
+  assert.equal(dashboard.currentPeriod.samples + dashboard.baselinePeriod.samples, 25)
+  assert.equal(dashboard.currentPeriod.from, '2026-08-04')
+  assert.equal(dashboard.baselinePeriod.to, '2026-08-03')
+  assert.equal(dashboard.mentionRate, dashboard.currentPeriod.mentionRate)
+  assert.equal(dashboard.citationProbability, dashboard.currentPeriod.citationProbability)
+  assert.ok(dashboard.citationProbability >= 0 && dashboard.citationProbability <= 100)
+  assert.ok(dashboard.keywordScenes.some((scene) => scene.scene === '问题求解'))
+  assert.ok(dashboard.keywordPerformance.some((keyword) => keyword.word === '企业 GEO 怎么做' && keyword.scene === '问题求解'))
+  assert.ok(dashboard.trend.every((day) => typeof day.mentionRate === 'number' && typeof day.citationProbability === 'number'))
+})
+
+test('GEO rates use separate baseline and current-period denominators', () => {
+  const dashboard = buildGeoInsights({
+    keywords: [{ word: '企业 GEO 怎么做', category: '问题词', search_volume: 100 }],
+    observations: [
+      { platform: 'DeepSeek', keyword: '企业 GEO 怎么做', mentioned: 1, cited: 0, rank: 2, observed_at: '2026-08-01 09:00:00' },
+      { platform: '豆包', keyword: '企业 GEO 怎么做', mentioned: 0, cited: 0, rank: null, observed_at: '2026-08-01 10:00:00' },
+      { platform: 'DeepSeek', keyword: '企业 GEO 怎么做', mentioned: 1, cited: 1, rank: 1, observed_at: '2026-08-02 09:00:00' },
+      { platform: '豆包', keyword: '企业 GEO 怎么做', mentioned: 1, cited: 0, rank: 3, observed_at: '2026-08-02 10:00:00' },
+    ],
+  })
+
+  assert.deepEqual(
+    {
+      baselineMentionRate: dashboard.baselineMentionRate,
+      currentMentionRate: dashboard.mentionRate,
+      currentCitationProbability: dashboard.citationProbability,
+      currentCitationRate: dashboard.citationRate,
+      delta: dashboard.mentionRateDelta,
+    },
+    { baselineMentionRate: 50, currentMentionRate: 100, currentCitationProbability: 50, currentCitationRate: 50, delta: 50 },
+  )
+})
+
+test('采样日期校验会拒绝不存在的日期并保留合法 ISO 时间', () => {
+  assert.equal(normalizeObservedAt('2026-02-29 09:00:00'), null)
+  assert.equal(normalizeObservedAt('2028-02-29T09:30:00+08:00'), '2028-02-29T09:30:00+08:00')
+})
+
+test('采样写入会保留真实口径并阻止无提及引用', async () => {
+  const created = await request(app)
+    .post('/api/observations')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ customerId: 1, platform: '测试平台', keyword: 'AI先行者 GEO 中台', mentioned: 0, cited: 1, rank: 1, observedAt: '2026-08-08 09:00:00' })
+  assert.equal(created.status, 201)
+  assert.equal(created.body.cited, 0)
+  assert.equal(created.body.rank, null)
+})
+
+test('采样写入拒绝非法时间并统一排名口径', async () => {
+  const invalidDate = await request(app)
+    .post('/api/observations')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ customerId: 1, platform: '测试平台', keyword: '非法时间探针', mentioned: 1, rank: 1, observedAt: 'not-a-date' })
+  assert.equal(invalidDate.status, 400)
+  assert.equal(invalidDate.body.message, '采样时间格式不正确')
+
+  const normalizedRank = await request(app)
+    .post('/api/observations')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ customerId: 1, platform: '测试平台', keyword: '排名归一探针', mentioned: 1, rank: 1.7, observedAt: '2026-08-08 10:00:00' })
+  assert.equal(normalizedRank.status, 201)
+  assert.equal(normalizedRank.body.rank, 2)
 })
 
 test('deep GEO module records can be created, filtered and moved to a new status', async () => {

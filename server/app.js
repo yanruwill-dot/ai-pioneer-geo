@@ -2,6 +2,7 @@ import express from 'express'
 import crypto from 'node:crypto'
 import { resolve } from 'node:path'
 import { createDatabase, dashboardFor } from './database.js'
+import { normalizeObservationRank, normalizeObservedAt } from '../shared/geoInsights.js'
 
 function passwordHash(password, salt) {
   return crypto.scryptSync(password, salt, 64).toString('hex')
@@ -76,6 +77,23 @@ export function createApp({ database } = {}) {
   })
   app.get('/api/observations', requireAuth, (req, res) => {
     res.json(rowList(db, 'observations', Number(req.query.customerId || 1)))
+  })
+  app.post('/api/observations', requireAuth, (req, res) => {
+    const { customerId = 1, platform, keyword, rank = null, mentioned = 0, cited = 0, sentiment = '正向', observedAt } = req.body || {}
+    const normalizedPlatform = String(platform || '').trim()
+    const normalizedKeyword = String(keyword || '').trim()
+    const customer = db.prepare('SELECT id FROM customers WHERE id = ?').get(Number(customerId))
+    if (!customer) return res.status(404).json({ message: '客户不存在' })
+    if (!normalizedPlatform || !normalizedKeyword) return res.status(400).json({ message: '平台和问题词不能为空' })
+    const isMentioned = Number(mentioned) ? 1 : 0
+    const isCited = isMentioned && Number(cited) ? 1 : 0
+    const normalizedRank = normalizeObservationRank(rank, isMentioned)
+    const timestamp = normalizeObservedAt(observedAt, new Date())
+    if (!timestamp) return res.status(400).json({ message: '采样时间格式不正确' })
+    const result = db.prepare(`INSERT INTO observations
+      (customer_id, platform, keyword, rank, mentioned, cited, sentiment, observed_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(Number(customerId), normalizedPlatform, normalizedKeyword, normalizedRank, isMentioned, isCited, String(sentiment || '正向'), timestamp)
+    res.status(201).json(db.prepare('SELECT * FROM observations WHERE id = ?').get(result.lastInsertRowid))
   })
 
   app.get('/api/keywords', requireAuth, (req, res) => {

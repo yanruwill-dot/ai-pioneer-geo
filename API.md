@@ -17,7 +17,9 @@
 | PATCH | `/api/publish-tasks/:id` | 更新任务进度 |
 | GET | `/api/automations` | 自动化任务 |
 | PATCH | `/api/automations/:id/toggle` | 启停自动化任务 |
-| GET | `/api/observations` | AI 平台采样明细 |
+| GET/POST | `/api/observations` | AI 平台采样明细；POST 写入一条可追溯采样并自动校验“引用属于提及” |
 | GET/POST | `/api/module-items` | 深层业务模块列表与新增 |
 | PATCH | `/api/module-items/:id` | 更新业务记录与状态 |
 | GET/PUT | `/api/module-settings/:module` | 实名认证、AI 智能体配置读写 |
+
+`POST /api/observations` 的 `observedAt` 支持 `YYYY-MM-DD` 以及带时间的 ISO 格式，非法日期返回 `400`；排名只保留正整数，小数会四舍五入，未提及样本的排名和引用自动归空。

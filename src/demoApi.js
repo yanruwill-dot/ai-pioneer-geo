@@ -1,4 +1,6 @@
-const STORE_KEY = 'ai_pioneer_pages_demo_db_v1'
+import { buildGeoInsights, normalizeObservationRank, normalizeObservedAt } from '../shared/geoInsights.js'
+
+const STORE_KEY = 'ai_pioneer_pages_demo_db_v2'
 const SESSION_TOKEN = 'ai-pioneer-pages-session'
 
 const moduleRows = [
@@ -40,28 +42,28 @@ function initialState() {
     ['AI 搜索排名优化', '行业词', 720, '训练中'],
     ['品牌如何被大模型推荐', '问题词', 640, '已完成'],
     ['杭州 AI 营销公司', '地域词', 390, '训练中'],
-  ].map(([word, category, search_volume, status], index) => ({ id: index + 1, word, category, search_volume, status, created_at: isoDate(index + 1) }))
+  ].map(([word, category, search_volume, status], index) => ({ id: index + 1, customer_id: 1, word, category, search_volume, status, created_at: isoDate(index + 1) }))
   const knowledge = [
     ['公司与品牌介绍', '企业资料', '智焰 AI 为企业提供 AI 内容生产、GEO 策略和多平台运营服务。'],
     ['核心服务说明', '产品服务', '覆盖品牌定位、关键词体系、知识资产、内容生产、信源发布和数据复盘。'],
     ['客户常见问题', 'FAQ', '围绕 GEO 的投入、周期、平台覆盖和效果验证提供标准问答。'],
-  ].map(([title, type, content], index) => ({ id: index + 1, title, type, content, status: '已启用', created_at: isoDate(index + 1) }))
+  ].map(([title, type, content], index) => ({ id: index + 1, customer_id: 1, title, type, content, status: '已启用', created_at: isoDate(index + 1) }))
   const publishTasks = [
     ['GEO 入门指南：让品牌进入 AI 答案', '新闻媒体', '发布成功', 100],
     ['企业做 GEO 前必须准备的 5 类资料', 'B2B 网站', '发布中', 68],
     ['AI 搜索品牌可见度周报', '自有站点', '待发布', 0],
-  ].map(([title, channel, status, progress], index) => ({ id: index + 1, title, channel, status, progress, scheduled_at: isoDate(index + 4), created_at: isoDate(index + 1) }))
+  ].map(([title, channel, status, progress], index) => ({ id: index + 1, customer_id: 1, title, channel, status, progress, scheduled_at: isoDate(index + 4), created_at: isoDate(index + 1) }))
   const automations = [
     ['每日 AI 平台采样', '每天 09:00', 1],
     ['品牌问题词扩展', '每周一 10:00', 1],
     ['内容发布与回查', '每 6 小时', 0],
-  ].map(([name, cadence, enabled], index) => ({ id: index + 1, name, cadence, enabled, last_run: isoDate(4), next_run: enabled ? isoDate(6) : '已暂停' }))
+  ].map(([name, cadence, enabled], index) => ({ id: index + 1, customer_id: 1, name, cadence, enabled, last_run: isoDate(4), next_run: enabled ? isoDate(6) : '已暂停' }))
   const platforms = ['DeepSeek', '豆包', '元宝', '文心一言', '通义千问']
   const observations = []
   let observationId = 1
   platforms.forEach((platform, platformIndex) => keywords.forEach((keyword, wordIndex) => {
     const mentioned = (platformIndex * 5 + wordIndex) % 4 !== 0 ? 1 : 0
-    observations.push({ id: observationId++, platform, keyword: keyword.word, rank: mentioned ? ((platformIndex + wordIndex) % 5) + 1 : null, mentioned, cited: (platformIndex + wordIndex) % 5 === 0 ? 1 : 0, sentiment: (platformIndex + wordIndex) % 7 === 0 ? '中性' : '正向', observed_at: isoDate(wordIndex + 1) })
+    observations.push({ id: observationId++, customer_id: 1, platform, keyword: keyword.word, rank: mentioned ? ((platformIndex + wordIndex) % 5) + 1 : null, mentioned, cited: mentioned && (platformIndex + wordIndex) % 5 === 0 ? 1 : 0, sentiment: (platformIndex + wordIndex) % 7 === 0 ? '中性' : '正向', observed_at: isoDate(wordIndex + 1) })
   }))
   return {
     customers: [
@@ -74,17 +76,21 @@ function initialState() {
     publishTasks,
     automations,
     observations,
-    moduleItems: moduleRows.map(([module, title, item_type, status, metric, detail], index) => ({ id: index + 1, module, title, item_type, status, metric, detail, created_at: isoDate(), updated_at: isoDate() })),
+    moduleItems: moduleRows.map(([module, title, item_type, status, metric, detail], index) => ({ id: index + 1, customer_id: 1, module, title, item_type, status, metric, detail, created_at: isoDate(), updated_at: isoDate() })),
     settings: {
-      realname: { authType: '企业认证', company: '智焰科技有限公司', unifiedCode: '91330100MA******8X', legalRepresentative: '企业管理员', status: '已认证', address: '浙江省杭州市' },
-      agent: { tab: '智能体官网', name: '智焰 AI 品牌顾问', welcome: '你好，我是品牌 AI 顾问，可以为你介绍 GEO 服务、实施流程和案例。', tone: '专业、清晰、可信', websiteDomain: 'ai.zhiyan.example', servicePhone: '400-800-2026', enabled: true },
+      1: {
+        realname: { authType: '企业认证', company: '智焰科技有限公司', unifiedCode: '91330100MA******8X', legalRepresentative: '企业管理员', status: '已认证', address: '浙江省杭州市' },
+        agent: { tab: '智能体官网', name: '智焰 AI 品牌顾问', welcome: '你好，我是品牌 AI 顾问，可以为你介绍 GEO 服务、实施流程和案例。', tone: '专业、清晰、可信', websiteDomain: 'ai.zhiyan.example', servicePhone: '400-800-2026', enabled: true },
+      },
     },
   }
 }
 
 function readState() {
   try {
-    return JSON.parse(localStorage.getItem(STORE_KEY)) || initialState()
+    const state = JSON.parse(localStorage.getItem(STORE_KEY)) || initialState()
+    state.observations = (state.observations || []).map((row) => ({ ...row, cited: row.mentioned ? Number(row.cited || 0) : 0 }))
+    return state
   } catch {
     return initialState()
   }
@@ -98,17 +104,12 @@ function nextId(rows) {
   return Math.max(0, ...rows.map((row) => Number(row.id) || 0)) + 1
 }
 
-function dashboard(state) {
-  const rows = state.observations
-  const mentions = rows.reduce((sum, row) => sum + row.mentioned, 0)
-  const citations = rows.reduce((sum, row) => sum + row.cited, 0)
-  const platformStats = [...new Set(rows.map((row) => row.platform))].map((platform) => {
-    const platformRows = rows.filter((row) => row.platform === platform)
-    const ranked = platformRows.filter((row) => row.rank)
-    return { platform, samples: platformRows.length, mentions: platformRows.reduce((sum, row) => sum + row.mentioned, 0), citations: platformRows.reduce((sum, row) => sum + row.cited, 0), averageRank: ranked.length ? Number((ranked.reduce((sum, row) => sum + row.rank, 0) / ranked.length).toFixed(1)) : null }
-  })
-  const trend = [1, 2, 3, 4, 5, 6, 7].map((day) => ({ date: `08-${String(day).padStart(2, '0')}`, mentions: rows.filter((row) => row.observed_at.includes(`08-${String(day).padStart(2, '0')}`)).reduce((sum, row) => sum + row.mentioned, 0), citations: rows.filter((row) => row.observed_at.includes(`08-${String(day).padStart(2, '0')}`)).reduce((sum, row) => sum + row.cited, 0) }))
-  return { samples: rows.length, mentions, citations, platforms: platformStats.filter((row) => row.mentions).length, words: new Set(rows.map((row) => row.keyword)).size, top1: rows.filter((row) => row.rank === 1).length, visibilityRate: Math.round((mentions / rows.length) * 100), top1Rate: Math.round((rows.filter((row) => row.rank === 1).length / rows.length) * 100), platformStats, trend }
+function scoped(rows, customerId) {
+  return rows.filter((row) => Number(row.customer_id || 1) === customerId)
+}
+
+function dashboard(state, customerId) {
+  return buildGeoInsights({ observations: scoped(state.observations, customerId), keywords: scoped(state.keywords, customerId) })
 }
 
 export async function demoApi(path, options = {}) {
@@ -118,6 +119,8 @@ export async function demoApi(path, options = {}) {
   const url = new URL(path, location.origin)
   const state = readState()
   const pathname = url.pathname
+  const parsedCustomerId = Number(url.searchParams.get('customerId') || body.customerId || 1)
+  const customerId = Number.isInteger(parsedCustomerId) && parsedCustomerId > 0 ? parsedCustomerId : 1
 
   if (pathname === '/auth/login' && method === 'POST') {
     if (body.username !== 'yanru' || body.password !== '123456') throw new Error('账号或密码不正确')
@@ -136,31 +139,39 @@ export async function demoApi(path, options = {}) {
     if (!customer) throw new Error('客户不存在')
     return { customer, product: 'GEO', redirect: '/geo/dashboard' }
   }
-  if (pathname === '/dashboard') return dashboard(state)
-  if (pathname === '/observations') return [...state.observations].reverse()
+  if (pathname === '/dashboard') return dashboard(state, customerId)
+  if (pathname === '/observations' && method === 'GET') return [...scoped(state.observations, customerId)].reverse()
+  if (pathname === '/observations' && method === 'POST') {
+    const mentioned = Number(body.mentioned) ? 1 : 0
+    const observedAt = normalizeObservedAt(body.observedAt, isoDate())
+    const row = { id: nextId(state.observations), customer_id: customerId, platform: String(body.platform || '').trim(), keyword: String(body.keyword || '').trim(), rank: normalizeObservationRank(body.rank, mentioned), mentioned, cited: mentioned && Number(body.cited) ? 1 : 0, sentiment: body.sentiment || '正向', observed_at: observedAt }
+    if (!row.platform || !row.keyword) throw new Error('平台和问题词不能为空')
+    if (!observedAt) throw new Error('采样时间格式不正确')
+    state.observations.push(row); writeState(state); return row
+  }
 
   const resources = { '/keywords': 'keywords', '/knowledge': 'knowledge', '/publish-tasks': 'publishTasks', '/automations': 'automations' }
   const resourceKey = resources[pathname]
-  if (resourceKey && method === 'GET') return [...state[resourceKey]].reverse()
+  if (resourceKey && method === 'GET') return [...scoped(state[resourceKey], customerId)].reverse()
   if (pathname === '/keywords' && method === 'POST') {
-    const row = { id: nextId(state.keywords), word: body.word, category: body.category, search_volume: Number(body.searchVolume) || 0, status: '训练中', created_at: isoDate() }
+    const row = { id: nextId(state.keywords), customer_id: customerId, word: body.word, category: body.category, search_volume: Number(body.searchVolume) || 0, status: '训练中', created_at: isoDate() }
     state.keywords.push(row); writeState(state); return row
   }
   if (pathname === '/knowledge' && method === 'POST') {
-    const row = { id: nextId(state.knowledge), title: body.title, type: body.type, content: body.content, status: '已启用', created_at: isoDate() }
+    const row = { id: nextId(state.knowledge), customer_id: customerId, title: body.title, type: body.type, content: body.content, status: '已启用', created_at: isoDate() }
     state.knowledge.push(row); writeState(state); return row
   }
   if (pathname === '/publish-tasks' && method === 'POST') {
-    const row = { id: nextId(state.publishTasks), title: body.title, channel: body.channel, status: '待发布', progress: 0, scheduled_at: body.scheduledAt, created_at: isoDate() }
+    const row = { id: nextId(state.publishTasks), customer_id: customerId, title: body.title, channel: body.channel, status: '待发布', progress: 0, scheduled_at: body.scheduledAt, created_at: isoDate() }
     state.publishTasks.push(row); writeState(state); return row
   }
   const automationMatch = pathname.match(/^\/automations\/(\d+)\/toggle$/)
   if (automationMatch) {
     const row = state.automations.find((item) => item.id === Number(automationMatch[1])); row.enabled = row.enabled ? 0 : 1; writeState(state); return row
   }
-  if (pathname === '/module-items' && method === 'GET') return state.moduleItems.filter((row) => row.module === url.searchParams.get('module')).reverse()
+  if (pathname === '/module-items' && method === 'GET') return scoped(state.moduleItems, customerId).filter((row) => row.module === url.searchParams.get('module')).reverse()
   if (pathname === '/module-items' && method === 'POST') {
-    const row = { id: nextId(state.moduleItems), module: body.module, title: body.title, item_type: body.itemType, status: body.status, metric: body.metric, detail: body.detail, created_at: isoDate(), updated_at: isoDate() }
+    const row = { id: nextId(state.moduleItems), customer_id: customerId, module: body.module, title: body.title, item_type: body.itemType, status: body.status, metric: body.metric, detail: body.detail, created_at: isoDate(), updated_at: isoDate() }
     state.moduleItems.push(row); writeState(state); return row
   }
   const itemMatch = pathname.match(/^\/module-items\/(\d+)$/)
@@ -168,9 +179,10 @@ export async function demoApi(path, options = {}) {
     const row = state.moduleItems.find((item) => item.id === Number(itemMatch[1])); Object.assign(row, { ...(body.title !== undefined && { title: body.title }), ...(body.itemType !== undefined && { item_type: body.itemType }), ...(body.status !== undefined && { status: body.status }), ...(body.metric !== undefined && { metric: body.metric }), ...(body.detail !== undefined && { detail: body.detail }), updated_at: isoDate() }); writeState(state); return row
   }
   const settingsMatch = pathname.match(/^\/module-settings\/([^/]+)$/)
-  if (settingsMatch && method === 'GET') return { customer_id: 1, module: settingsMatch[1], data: state.settings[settingsMatch[1]] || {} }
+  if (settingsMatch && method === 'GET') return { customer_id: customerId, module: settingsMatch[1], data: state.settings[customerId]?.[settingsMatch[1]] || {} }
   if (settingsMatch && method === 'PUT') {
-    state.settings[settingsMatch[1]] = body.data; writeState(state); return { customer_id: 1, module: settingsMatch[1], data: body.data }
+    state.settings[customerId] ||= {}
+    state.settings[customerId][settingsMatch[1]] = body.data; writeState(state); return { customer_id: customerId, module: settingsMatch[1], data: body.data }
   }
   throw new Error(`演示接口暂不支持：${method} ${pathname}`)
 }

@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
+import { buildGeoInsights } from '../shared/geoInsights.js'
 
 const DEMO_PASSWORD_HASH = '0680b7692b003bed70276631a9cf30bf50e8794ecf86c3d63a6b4b9ec56436dfdbb2e2588b8a0ee3490a3e58afe0e82aea3d580f0db28f6b3fef63e4f6a93b57'
 const DEMO_PASSWORD_SALT = 'zx-demo-salt-2026'
@@ -108,6 +109,8 @@ export function createDatabase(filename = resolve('data/geo.sqlite')) {
 }
 
 function seed(db) {
+  // 引用必须来自已提及样本，清理早期演示数据中的矛盾记录，避免概率超过 100%。
+  db.prepare('UPDATE observations SET cited = 0 WHERE mentioned = 0').run()
   db.prepare(`INSERT OR IGNORE INTO users (id, username, password_hash, password_salt, name, role)
     VALUES (1, 'yanru', ?, ?, 'AI运营官', '超级管理员')`).run(DEMO_PASSWORD_HASH, DEMO_PASSWORD_SALT)
   db.prepare(`UPDATE users SET username = 'yanru', name = 'AI运营官' WHERE id = 1`).run()
@@ -174,7 +177,7 @@ function seed(db) {
   for (const platform of platforms) {
     for (const word of words) {
       const mentioned = index % 4 !== 0 ? 1 : 0
-      const cited = index % 5 === 0 ? 1 : 0
+      const cited = mentioned && index % 5 === 0 ? 1 : 0
       insertObservation.run(
         platform,
         word,
@@ -235,27 +238,7 @@ function seedModules(db) {
 }
 
 export function dashboardFor(db, customerId) {
-  const base = db.prepare(`SELECT
-    COUNT(*) AS samples,
-    SUM(mentioned) AS mentions,
-    SUM(cited) AS citations,
-    COUNT(DISTINCT CASE WHEN mentioned = 1 THEN platform END) AS platforms,
-    COUNT(DISTINCT keyword) AS words,
-    SUM(CASE WHEN rank = 1 THEN 1 ELSE 0 END) AS top1
-    FROM observations WHERE customer_id = ?`).get(customerId)
-  const platformStats = db.prepare(`SELECT platform,
-    COUNT(*) AS samples, SUM(mentioned) AS mentions, SUM(cited) AS citations,
-    ROUND(AVG(CASE WHEN rank IS NOT NULL THEN rank END), 1) AS averageRank
-    FROM observations WHERE customer_id = ? GROUP BY platform ORDER BY mentions DESC`).all(customerId)
-  const trend = db.prepare(`SELECT substr(observed_at, 6, 5) AS date,
-    SUM(mentioned) AS mentions, SUM(cited) AS citations
-    FROM observations WHERE customer_id = ? GROUP BY substr(observed_at, 1, 10) ORDER BY observed_at`).all(customerId)
-  const safeSamples = base.samples || 1
-  return {
-    ...base,
-    visibilityRate: Math.round((base.mentions / safeSamples) * 100),
-    top1Rate: Math.round((base.top1 / safeSamples) * 100),
-    platformStats,
-    trend,
-  }
+  const observations = db.prepare('SELECT * FROM observations WHERE customer_id = ? ORDER BY observed_at').all(customerId)
+  const keywords = db.prepare('SELECT * FROM keywords WHERE customer_id = ? ORDER BY id').all(customerId)
+  return buildGeoInsights({ observations, keywords })
 }
