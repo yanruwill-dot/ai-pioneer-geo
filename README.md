@@ -6,6 +6,10 @@
 
 [https://yanruwill-dot.github.io/ai-pioneer-geo/](https://yanruwill-dot.github.io/ai-pioneer-geo/)
 
+备用公网入口：[https://ai-pioneer-geo.netlify.app/](https://ai-pioneer-geo.netlify.app/)
+
+本机稳定入口：[http://127.0.0.1:3306/](http://127.0.0.1:3306/)。当前 Mac 已配置 `com.ai-pioneer.geo-console` 常驻服务，登录后会自动启动并在异常退出后拉起。
+
 GitHub Pages 版本使用浏览器本地数据层，因此登录、客户切换、新建、筛选、状态流转和配置保存均可操作，刷新后仍可回查。在 Pages 上使用 Hash 路由，所有站内页面都从同一个 `200` 入口加载，避免静态托管对深层路径返回 `404`。演示数据只保存在访问者自己的浏览器，不会写入生产系统。
 
 ## 已实现
