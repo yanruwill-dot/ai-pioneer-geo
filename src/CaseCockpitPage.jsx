@@ -56,6 +56,7 @@ export function CaseCockpitPage({ caseSlug }) {
   const totalMentions = item.platforms.reduce((sum, row) => sum + row.mentions, 0)
   const platformNames = [...new Set(item.questions.map((row) => row.platform))]
   const viewKey = cockpitViewKey(view)
+  const savedEvidenceLabel = item.evidenceKind === 'platform' ? '已保存平台快照' : '已保存案例快照'
   const openEvidence = () => {
     if (!evidenceRoute) return
     try { window.sessionStorage.setItem(EVIDENCE_RETURN_STORAGE_KEY, caseCockpitRoute(item.slug)) } catch {}
@@ -103,14 +104,14 @@ export function CaseCockpitPage({ caseSlug }) {
         <article className="case-term-cloud"><header><span>EXPANDED QUERY SCENES</span><h2>拓展词出现的场景</h2></header><div>{item.coreProducts.map((term, index) => <span key={term} style={{ '--size': `${12 + (index % 3) * 4}px`, '--delay': `${index * 35}ms` }}>{term}</span>)}{item.questions.map((row, index) => <span key={row.keyword} className="question-term" style={{ '--size': `${11 + (index % 2) * 3}px` }}>{row.keyword}</span>)}</div><p>词云来自本案例演示问题词，不代表平台搜索量或模型推荐结论。</p></article>
       </section> : <section className="case-question-coverage" data-view="coverage">
         <header><div><span>QUESTION COVERAGE MAP</span><h2>问题词覆盖视图</h2></div><em>{item.questions.length} 个问题词 · {platformNames.length} 个平台</em></header>
-        <div>{item.questions.map((row) => <article key={`${row.platform}-${row.keyword}`}><span>{row.platform}</span><h3>{row.keyword}</h3><p>{row.device} · 转化目标：{row.target}</p><em className={row.saved ? 'ready' : ''}>{row.saved ? '已保存真实快照' : '待补充原回答'}</em></article>)}</div>
+        <div>{item.questions.map((row) => <article key={`${row.platform}-${row.keyword}`}><span>{row.platform}</span><h3>{row.keyword}</h3><p>{row.device} · 转化目标：{row.target}</p><em className={row.saved ? 'ready' : ''}>{row.saved ? savedEvidenceLabel : '待补充原回答'}</em></article>)}</div>
         <p>此视图按问题词展示平台、设备、转化目标和凭证完整度；与趋势报表是不同的分析视角。</p>
       </section>}
 
       <section className="case-query-report">
         <header><div><span>SEARCH OBSERVATION REPORT</span><h2>问题词与凭证入口</h2></div><div className="case-query-filters"><select aria-label="筛选采样平台" value={platform} onChange={(event) => setPlatform(event.target.value)}><option>全部平台</option>{platformNames.map((name) => <option key={name}>{name}</option>)}</select><label><Search /><input aria-label="搜索案例问题词" placeholder="请输入问题" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div></header>
-        <div className="case-report-note"><ShieldCheck /> 案例指标为演示数据；只有标注“已保存真实快照”的记录可以打开原回答凭证。</div>
-        <div className="table-scroll"><table><thead><tr><th>序号</th><th>问题词</th><th>平台</th><th>设备</th><th>转化目标</th><th>凭证状态</th><th>操作</th></tr></thead><tbody>{questions.map((row, index) => <tr key={`${row.platform}-${row.keyword}`}><td>{index + 1}</td><td><b>{row.keyword}</b></td><td>{row.platform}</td><td>{row.device}</td><td><span className="tag blue">{row.target}</span></td><td>{row.saved ? <span className="case-evidence-ready"><CheckCircle2 /> 已保存真实快照</span> : <span className="case-evidence-missing"><FileSearch /> 未保存原回答</span>}</td><td>{row.saved && evidenceRoute ? <button className="table-action evidence-action" onClick={openEvidence}>快照凭证</button> : <button className="table-action" disabled title={row.saved ? '凭证记录读取中或已失效' : '没有保存可回查的回答正文'}>{row.saved && !evidenceLoaded ? '读取中…' : '暂无凭证'}</button>}</td></tr>)}</tbody></table></div>
+        <div className="case-report-note"><ShieldCheck /> {item.evidenceKind === 'platform' ? '平台快照保存了原回答与原会话入口。' : '案例快照保存了内部演示回答，未绑定外部平台原会话。'} 未保存正文的记录保持禁用。</div>
+        <div className="table-scroll"><table><thead><tr><th>序号</th><th>问题词</th><th>平台</th><th>设备</th><th>转化目标</th><th>凭证状态</th><th>操作</th></tr></thead><tbody>{questions.map((row, index) => <tr key={`${row.platform}-${row.keyword}`}><td>{index + 1}</td><td><b>{row.keyword}</b></td><td>{row.platform}</td><td>{row.device}</td><td><span className="tag blue">{row.target}</span></td><td>{row.saved ? <span className="case-evidence-ready"><CheckCircle2 /> {savedEvidenceLabel}</span> : <span className="case-evidence-missing"><FileSearch /> 未保存原回答</span>}</td><td>{row.saved && evidenceRoute ? <button className="table-action evidence-action" onClick={openEvidence}>快照凭证</button> : <button className="table-action" disabled title={row.saved ? '凭证记录读取中或已失效' : '没有保存可回查的回答正文'}>{row.saved && !evidenceLoaded ? '读取中…' : '暂无凭证'}</button>}</td></tr>)}</tbody></table></div>
         {!questions.length && <div className="empty-state"><Search /><b>没有匹配的问题词</b><span>调整平台或关键词后再试。</span></div>}
       </section>
 

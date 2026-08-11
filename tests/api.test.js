@@ -179,6 +179,31 @@ test('真实豆包快照列表保持轻量，详情保存正文与原始会话�
   assert.equal(detail.body.captured_at, '2026-08-11 14:45:31')
 })
 
+test('两个额外案例快照可按客户回查且不伪造平台原链接', async () => {
+  const expected = [
+    { customerId: 2, externalId: 'case-demo-chengming-20260811', brand: '澄明课堂' },
+    { customerId: 3, externalId: 'case-demo-xianghai-20260811', brand: '向海咨询' },
+  ]
+  for (const item of expected) {
+    const list = await request(app)
+      .get(`/api/observations?customerId=${item.customerId}`)
+      .set('Authorization', `Bearer ${token}`)
+    const target = list.body.find((row) => row.external_id === item.externalId)
+    assert.ok(target)
+    assert.equal(target.has_content, 1)
+    assert.equal(target.source_url, '')
+    assert.equal(Object.hasOwn(target, 'answer_text'), false)
+
+    const detail = await request(app)
+      .get(`/api/observations/${target.id}?customerId=${item.customerId}`)
+      .set('Authorization', `Bearer ${token}`)
+    assert.equal(detail.status, 200)
+    assert.equal(detail.body.customer_brand, item.brand)
+    assert.match(detail.body.answer_text, /内部案例演示快照/)
+    assert.match(detail.body.answer_text, /不代表平台真实推荐/)
+  }
+})
+
 test('未保存回答正文的采样仍可按客户打开结构化凭证', async () => {
   const list = await request(app)
     .get('/api/observations?customerId=1')

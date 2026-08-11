@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { buildGeoInsights } from '../shared/geoInsights.js'
-import { RECORDED_DOUBAO_EVIDENCE } from '../shared/recordedEvidence.js'
+import { RECORDED_EVIDENCE } from '../shared/recordedEvidence.js'
 
 const DEMO_PASSWORD_HASH = '0680b7692b003bed70276631a9cf30bf50e8794ecf86c3d63a6b4b9ec56436dfdbb2e2588b8a0ee3490a3e58afe0e82aea3d580f0db28f6b3fef63e4f6a93b57'
 const DEMO_PASSWORD_SALT = 'zx-demo-salt-2026'
@@ -222,42 +222,44 @@ function seed(db) {
 }
 
 function seedRecordedEvidence(db) {
-  const evidence = RECORDED_DOUBAO_EVIDENCE
-  const customer = db.prepare('SELECT id FROM customers WHERE id = ?').get(evidence.customerId)
-  if (!customer) return
+  for (const evidence of RECORDED_EVIDENCE) {
+    const customer = db.prepare('SELECT id FROM customers WHERE id = ?').get(evidence.customerId)
+    if (!customer) continue
 
-  const existing = db.prepare(`SELECT id FROM observations
-    WHERE external_id = ? OR source_url = ? LIMIT 1`).get(evidence.externalId, evidence.sourceUrl)
-  const values = [
-    evidence.externalId,
-    evidence.customerId,
-    evidence.platform,
-    evidence.keyword,
-    evidence.rank,
-    Number(evidence.mentioned) ? 1 : 0,
-    Number(evidence.mentioned) && Number(evidence.cited) ? 1 : 0,
-    evidence.sentiment,
-    evidence.device,
-    evidence.observedAt,
-    evidence.answerText,
-    evidence.sourceUrl,
-    Math.max(0, Math.trunc(Number(evidence.referenceCount) || 0)),
-    evidence.capturedAt,
-    evidence.conversionTarget,
-  ]
+    const existing = evidence.sourceUrl
+      ? db.prepare(`SELECT id FROM observations WHERE external_id = ? OR source_url = ? LIMIT 1`).get(evidence.externalId, evidence.sourceUrl)
+      : db.prepare('SELECT id FROM observations WHERE external_id = ? LIMIT 1').get(evidence.externalId)
+    const values = [
+      evidence.externalId,
+      evidence.customerId,
+      evidence.platform,
+      evidence.keyword,
+      evidence.rank,
+      Number(evidence.mentioned) ? 1 : 0,
+      Number(evidence.mentioned) && Number(evidence.cited) ? 1 : 0,
+      evidence.sentiment,
+      evidence.device,
+      evidence.observedAt,
+      evidence.answerText,
+      evidence.sourceUrl,
+      Math.max(0, Math.trunc(Number(evidence.referenceCount) || 0)),
+      evidence.capturedAt,
+      evidence.conversionTarget,
+    ]
 
-  if (existing) {
-    db.prepare(`UPDATE observations SET
-      external_id = ?, customer_id = ?, platform = ?, keyword = ?, rank = ?, mentioned = ?, cited = ?,
-      sentiment = ?, device = ?, observed_at = ?, answer_text = ?, source_url = ?, reference_count = ?,
-      captured_at = ?, conversion_target = ? WHERE id = ?`).run(...values, existing.id)
-    return
+    if (existing) {
+      db.prepare(`UPDATE observations SET
+        external_id = ?, customer_id = ?, platform = ?, keyword = ?, rank = ?, mentioned = ?, cited = ?,
+        sentiment = ?, device = ?, observed_at = ?, answer_text = ?, source_url = ?, reference_count = ?,
+        captured_at = ?, conversion_target = ? WHERE id = ?`).run(...values, existing.id)
+      continue
+    }
+
+    db.prepare(`INSERT INTO observations
+      (external_id, customer_id, platform, keyword, rank, mentioned, cited, sentiment, device, observed_at,
+        answer_text, source_url, reference_count, captured_at, conversion_target)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(...values)
   }
-
-  db.prepare(`INSERT INTO observations
-    (external_id, customer_id, platform, keyword, rank, mentioned, cited, sentiment, device, observed_at,
-      answer_text, source_url, reference_count, captured_at, conversion_target)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(...values)
 }
 
 function seedModules(db) {

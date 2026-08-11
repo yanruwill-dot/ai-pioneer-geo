@@ -110,6 +110,25 @@ test('Pages demo ships the same real Doubao evidence without leaking full text i
   assert.equal(detail.customer_brand, '智焰 AI')
 })
 
+test('Pages demo exposes two additional customer-scoped case snapshots without fake source URLs', async () => {
+  const cases = [
+    { customerId: 2, externalId: 'case-demo-chengming-20260811', brand: '澄明课堂' },
+    { customerId: 3, externalId: 'case-demo-xianghai-20260811', brand: '向海咨询' },
+  ]
+  for (const item of cases) {
+    const list = await demoApi(`/observations?customerId=${item.customerId}`)
+    const target = list.find((row) => row.external_id === item.externalId)
+    assert.ok(target)
+    assert.equal(target.has_content, 1)
+    assert.equal(target.source_url, '')
+    assert.equal(Object.hasOwn(target, 'answer_text'), false)
+
+    const detail = await demoApi(`/observations/${target.id}?customerId=${item.customerId}`)
+    assert.equal(detail.customer_brand, item.brand)
+    assert.match(detail.answer_text, /内部案例演示快照/)
+  }
+})
+
 test('Pages demo upgrades old stored observations and keeps the cockpit voucher on the real record', async () => {
   await demoApi('/observations', {
     method: 'POST',

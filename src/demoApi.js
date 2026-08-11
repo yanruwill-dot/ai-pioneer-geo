@@ -1,5 +1,5 @@
 import { buildGeoInsights, normalizeObservationRank, normalizeObservedAt } from '../shared/geoInsights.js'
-import { RECORDED_DOUBAO_EVIDENCE } from '../shared/recordedEvidence.js'
+import { RECORDED_EVIDENCE } from '../shared/recordedEvidence.js'
 
 const STORE_KEY = 'ai_pioneer_pages_demo_db_v2'
 const SESSION_TOKEN = 'ai-pioneer-pages-session'
@@ -36,8 +36,7 @@ function isoDate(day = 5) {
   return `2026-08-${String(day).padStart(2, '0')} 09:00:00`
 }
 
-function recordedDoubaoObservation(id) {
-  const evidence = RECORDED_DOUBAO_EVIDENCE
+function recordedObservation(evidence, id) {
   return {
     id,
     external_id: evidence.externalId,
@@ -105,7 +104,7 @@ function initialState() {
     const mentioned = (platformIndex * 5 + wordIndex) % 4 !== 0 ? 1 : 0
     observations.push({ id: observationId++, customer_id: 1, platform, keyword: keyword.word, rank: mentioned ? ((platformIndex + wordIndex) % 5) + 1 : null, mentioned, cited: mentioned && (platformIndex + wordIndex) % 5 === 0 ? 1 : 0, sentiment: (platformIndex + wordIndex) % 7 === 0 ? '中性' : '正向', device: (platformIndex * keywords.length + wordIndex) % 2 === 0 ? 'PC' : '移动端', observed_at: isoDate(wordIndex + 1) })
   }))
-  observations.push(recordedDoubaoObservation(observationId))
+  for (const evidence of RECORDED_EVIDENCE) observations.push(recordedObservation(evidence, observationId++))
   return {
     customers: [
       { id: 1, company: '智焰科技有限公司', brand: '智焰 AI', account: 'zhiyan', city: '杭州', status: '服务中', product: 'GEO', created_at: isoDate() },
@@ -131,18 +130,22 @@ function readState() {
   try {
     const state = JSON.parse(localStorage.getItem(STORE_KEY)) || initialState()
     state.observations = (state.observations || []).map((row) => ({ ...row, cited: row.mentioned ? Number(row.cited || 0) : 0, device: row.device || '未记录', has_content: Number(Boolean(row.answer_text)) }))
-    const recordedIndex = state.observations.findIndex((row) => row.external_id === RECORDED_DOUBAO_EVIDENCE.externalId || row.source_url === RECORDED_DOUBAO_EVIDENCE.sourceUrl)
-    if (recordedIndex === -1) {
-      state.observations.push(recordedDoubaoObservation(nextId(state.observations)))
-      writeState(state)
-    } else {
+    let changed = false
+    for (const evidence of RECORDED_EVIDENCE) {
+      const recordedIndex = state.observations.findIndex((row) => row.external_id === evidence.externalId || (evidence.sourceUrl && row.source_url === evidence.sourceUrl))
+      if (recordedIndex === -1) {
+        state.observations.push(recordedObservation(evidence, nextId(state.observations)))
+        changed = true
+        continue
+      }
       const current = state.observations[recordedIndex]
-      const upgraded = recordedDoubaoObservation(current.id)
+      const upgraded = recordedObservation(evidence, current.id)
       if (JSON.stringify(current) !== JSON.stringify(upgraded)) {
         state.observations[recordedIndex] = upgraded
-        writeState(state)
+        changed = true
       }
     }
+    if (changed) writeState(state)
     return state
   } catch {
     return initialState()

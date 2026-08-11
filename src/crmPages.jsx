@@ -210,7 +210,7 @@ export function CrmCases() {
       </form>
 
       <section className="case-library-grid">{visible.map((item) => <article key={item.id} className={`case-library-card ${item.enabled ? '' : 'disabled'}`}>
-        <header><div><span>{item.id}</span><h2>{item.company}</h2><small>{item.brand} · {item.industry}</small></div><button onClick={() => navigate(caseCockpitRoute(item.slug))}>查看驾驶舱 <ArrowUpRight /></button></header>
+        <header><div><div className="case-card-meta"><span>{item.id}</span>{item.evidenceExternalId && <em><CheckCircle2 /> {item.evidenceKind === 'platform' ? '平台快照' : '案例快照'}</em>}</div><h2>{item.company}</h2><small>{item.brand} · {item.industry}</small></div><button onClick={() => navigate(caseCockpitRoute(item.slug))}>查看驾驶舱 <ArrowUpRight /></button></header>
         <div className="case-card-products"><b>核心产品词</b><p>{item.coreProducts.join('、')}</p></div>
         <dl><div><dt><MapPin /> 所在区域</dt><dd>{item.region}</dd></div><div><dt><CalendarDays /> 开通日期</dt><dd>{item.openedAt}</dd></div><div><dt><Database /> 纳入要点</dt><dd>{item.includedPoints}</dd></div></dl>
         <footer><span>{item.enabled ? '已启用展示' : '已暂停展示'}</span><button role="switch" aria-checked={item.enabled} aria-label={`${item.brand}案例展示状态`} className={item.enabled ? 'on' : ''} onClick={() => setEnabled((current) => ({ ...current, [item.slug]: !item.enabled }))}><i /></button></footer>

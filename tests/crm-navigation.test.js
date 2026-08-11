@@ -65,6 +65,8 @@ test('case cockpit resolves evidence by stable external id and exposes distinct 
   assert.equal(findCaseEvidenceRoute(item, [{ id: 26, customer_id: 2, external_id: item.evidenceExternalId }]), '')
   assert.equal(cockpitViewKey('AI搜索营销报表'), 'report')
   assert.equal(cockpitViewKey('问题词覆盖视图'), 'coverage')
+  assert.equal(seedCases.filter((row) => row.evidenceExternalId).length, 3)
+  assert.deepEqual(seedCases.filter((row) => row.evidenceExternalId).map((row) => row.questions.some((question) => question.saved)), [true, true, true])
 })
 
 test('case visibility state preserves saved switches and rejects unknown values', () => {

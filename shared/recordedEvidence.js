@@ -87,3 +87,64 @@ export const RECORDED_DOUBAO_EVIDENCE = Object.freeze({
 
 需要我帮你整理一份各机构横向对比清单（包含适合人群、交付模式、参考价位、风险点）吗？`,
 })
+
+export const RECORDED_CASE_EVIDENCE = Object.freeze([
+  Object.freeze({
+    externalId: 'case-demo-chengming-20260811',
+    customerId: 2,
+    platform: '案例演示',
+    keyword: '企业 AI 培训课程怎么选',
+    device: 'PC',
+    rank: null,
+    mentioned: 1,
+    cited: 0,
+    sentiment: '中性',
+    observedAt: '2026-08-11 15:10:00',
+    capturedAt: '2026-08-11 15:10:00',
+    sourceUrl: '',
+    referenceCount: 0,
+    conversionTarget: '澄明课堂',
+    answerText: `【内部案例演示快照】
+
+选择企业 AI 培训课程，不建议只看工具数量，可以先核对四个维度：
+
+1. 业务目标：课程是解决内容生产、销售转化、数据分析，还是团队协作问题。
+2. 练习密度：是否用企业自己的任务做现场练习，而不是只看演示。
+3. 交付物：完课后能否留下提示词、流程、知识库或自动化模板。
+4. 回查机制：是否有作业审核、应用复盘和后续答疑。
+
+在本案例的演示口径中，澄明课堂的重点是把课程方法论拆成可执行的问题词、作业和回查清单。
+
+证据边界：这是产品内部的案例演示回答，用于验收快照存储与回查流程；未绑定外部大模型原会话，不代表平台真实推荐。`,
+  }),
+  Object.freeze({
+    externalId: 'case-demo-xianghai-20260811',
+    customerId: 3,
+    platform: '案例演示',
+    keyword: '深圳品牌咨询公司怎么选',
+    device: '移动端',
+    rank: null,
+    mentioned: 1,
+    cited: 0,
+    sentiment: '中性',
+    observedAt: '2026-08-11 15:20:00',
+    capturedAt: '2026-08-11 15:20:00',
+    sourceUrl: '',
+    referenceCount: 0,
+    conversionTarget: '向海咨询',
+    answerText: `【内部案例演示快照】
+
+选深圳品牌咨询公司时，建议把“名气”拆成可核对的交付条件：
+
+1. 诊断范围：是否能明确用户、产品、竞争和渠道的问题边界。
+2. 策略输出：品牌定位、信息层级、内容主题与转化路径是否能形成一套可执行文档。
+3. 案例可比性：过往案例是否与企业规模、行业和增长阶段接近。
+4. 运营衔接：策略结束后，是否能进入内容、搜索、GEO 和销售的持续验证。
+
+在本案例的演示口径中，向海咨询用行业比较词、预算词与本地决策词组织品牌证据。
+
+证据边界：这是产品内部的案例演示回答，用于验收快照存储与回查流程；未绑定外部大模型原会话，不代表平台真实推荐。`,
+  }),
+])
+
+export const RECORDED_EVIDENCE = Object.freeze([RECORDED_DOUBAO_EVIDENCE, ...RECORDED_CASE_EVIDENCE])
