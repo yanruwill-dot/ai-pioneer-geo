@@ -1,4 +1,5 @@
 import { buildGeoInsights, normalizeObservationRank, normalizeObservedAt } from '../shared/geoInsights.js'
+import { RECORDED_DOUBAO_EVIDENCE } from '../shared/recordedEvidence.js'
 
 const STORE_KEY = 'ai_pioneer_pages_demo_db_v2'
 const SESSION_TOKEN = 'ai-pioneer-pages-session'
@@ -35,6 +36,45 @@ function isoDate(day = 5) {
   return `2026-08-${String(day).padStart(2, '0')} 09:00:00`
 }
 
+function recordedDoubaoObservation(id) {
+  const evidence = RECORDED_DOUBAO_EVIDENCE
+  return {
+    id,
+    external_id: evidence.externalId,
+    customer_id: evidence.customerId,
+    platform: evidence.platform,
+    keyword: evidence.keyword,
+    rank: evidence.rank,
+    mentioned: evidence.mentioned,
+    cited: evidence.cited,
+    sentiment: evidence.sentiment,
+    device: evidence.device,
+    observed_at: evidence.observedAt,
+    captured_at: evidence.capturedAt,
+    source_url: evidence.sourceUrl,
+    reference_count: evidence.referenceCount,
+    conversion_target: evidence.conversionTarget,
+    answer_text: evidence.answerText,
+    has_content: 1,
+  }
+}
+
+function observationListItem(row) {
+  const { answer_text: _answerText, ...item } = row
+  return { ...item, has_content: Number(Boolean(row.answer_text)) }
+}
+
+function normalizeSourceUrl(value) {
+  if (!value) return ''
+  try {
+    const url = new URL(String(value))
+    if (!['http:', 'https:'].includes(url.protocol)) return null
+    return url.href
+  } catch {
+    return null
+  }
+}
+
 function initialState() {
   const keywords = [
     ['AI 内容营销', '核心业务', 1280, '已完成'],
@@ -63,8 +103,9 @@ function initialState() {
   let observationId = 1
   platforms.forEach((platform, platformIndex) => keywords.forEach((keyword, wordIndex) => {
     const mentioned = (platformIndex * 5 + wordIndex) % 4 !== 0 ? 1 : 0
-    observations.push({ id: observationId++, customer_id: 1, platform, keyword: keyword.word, rank: mentioned ? ((platformIndex + wordIndex) % 5) + 1 : null, mentioned, cited: mentioned && (platformIndex + wordIndex) % 5 === 0 ? 1 : 0, sentiment: (platformIndex + wordIndex) % 7 === 0 ? '中性' : '正向', observed_at: isoDate(wordIndex + 1) })
+    observations.push({ id: observationId++, customer_id: 1, platform, keyword: keyword.word, rank: mentioned ? ((platformIndex + wordIndex) % 5) + 1 : null, mentioned, cited: mentioned && (platformIndex + wordIndex) % 5 === 0 ? 1 : 0, sentiment: (platformIndex + wordIndex) % 7 === 0 ? '中性' : '正向', device: (platformIndex * keywords.length + wordIndex) % 2 === 0 ? 'PC' : '移动端', observed_at: isoDate(wordIndex + 1) })
   }))
+  observations.push(recordedDoubaoObservation(observationId))
   return {
     customers: [
       { id: 1, company: '智焰科技有限公司', brand: '智焰 AI', account: 'zhiyan', city: '杭州', status: '服务中', product: 'GEO', created_at: isoDate() },
@@ -89,7 +130,19 @@ function initialState() {
 function readState() {
   try {
     const state = JSON.parse(localStorage.getItem(STORE_KEY)) || initialState()
-    state.observations = (state.observations || []).map((row) => ({ ...row, cited: row.mentioned ? Number(row.cited || 0) : 0 }))
+    state.observations = (state.observations || []).map((row) => ({ ...row, cited: row.mentioned ? Number(row.cited || 0) : 0, device: row.device || '未记录', has_content: Number(Boolean(row.answer_text)) }))
+    const recordedIndex = state.observations.findIndex((row) => row.external_id === RECORDED_DOUBAO_EVIDENCE.externalId || row.source_url === RECORDED_DOUBAO_EVIDENCE.sourceUrl)
+    if (recordedIndex === -1) {
+      state.observations.push(recordedDoubaoObservation(nextId(state.observations)))
+      writeState(state)
+    } else {
+      const current = state.observations[recordedIndex]
+      const upgraded = recordedDoubaoObservation(current.id)
+      if (JSON.stringify(current) !== JSON.stringify(upgraded)) {
+        state.observations[recordedIndex] = upgraded
+        writeState(state)
+      }
+    }
     return state
   } catch {
     return initialState()
@@ -140,13 +193,23 @@ export async function demoApi(path, options = {}) {
     return { customer, product: 'GEO', redirect: '/geo/dashboard' }
   }
   if (pathname === '/dashboard') return dashboard(state, customerId)
-  if (pathname === '/observations' && method === 'GET') return [...scoped(state.observations, customerId)].reverse()
+  if (pathname === '/observations' && method === 'GET') return [...scoped(state.observations, customerId)].reverse().map(observationListItem)
+  const observationMatch = pathname.match(/^\/observations\/(\d+)$/)
+  if (observationMatch && method === 'GET') {
+    const row = state.observations.find((item) => item.id === Number(observationMatch[1]) && item.customer_id === customerId)
+    if (!row) throw new Error('采样凭证不存在')
+    const customer = state.customers.find((item) => item.id === customerId)
+    return { ...row, has_content: Number(Boolean(row.answer_text)), customer_brand: customer?.brand || '', customer_company: customer?.company || '' }
+  }
   if (pathname === '/observations' && method === 'POST') {
     const mentioned = Number(body.mentioned) ? 1 : 0
     const observedAt = normalizeObservedAt(body.observedAt, isoDate())
-    const row = { id: nextId(state.observations), customer_id: customerId, platform: String(body.platform || '').trim(), keyword: String(body.keyword || '').trim(), rank: normalizeObservationRank(body.rank, mentioned), mentioned, cited: mentioned && Number(body.cited) ? 1 : 0, sentiment: body.sentiment || '正向', observed_at: observedAt }
+    const sourceUrl = normalizeSourceUrl(body.sourceUrl)
+    const answerText = String(body.answerText || '').trim()
+    const row = { id: nextId(state.observations), external_id: String(body.externalId || '').trim() || null, customer_id: customerId, platform: String(body.platform || '').trim(), keyword: String(body.keyword || '').trim(), rank: normalizeObservationRank(body.rank, mentioned), mentioned, cited: mentioned && Number(body.cited) ? 1 : 0, sentiment: body.sentiment || '正向', device: ['PC', '移动端'].includes(body.device) ? body.device : '未记录', observed_at: observedAt, captured_at: normalizeObservedAt(body.capturedAt, observedAt) || observedAt, source_url: sourceUrl || '', reference_count: Math.max(0, Math.trunc(Number(body.referenceCount) || 0)), conversion_target: String(body.conversionTarget || '').trim(), answer_text: answerText, has_content: Number(Boolean(answerText)) }
     if (!row.platform || !row.keyword) throw new Error('平台和问题词不能为空')
     if (!observedAt) throw new Error('采样时间格式不正确')
+    if (sourceUrl === null) throw new Error('原始会话链接必须为 HTTP(S) 地址')
     state.observations.push(row); writeState(state); return row
   }
 

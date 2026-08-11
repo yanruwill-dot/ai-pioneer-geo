@@ -18,8 +18,11 @@
 | GET | `/api/automations` | 自动化任务 |
 | PATCH | `/api/automations/:id/toggle` | 启停自动化任务 |
 | GET/POST | `/api/observations` | AI 平台采样明细；POST 写入一条可追溯采样并自动校验“引用属于提及” |
+| GET | `/api/observations/:id?customerId=1` | 按记录 ID 与客户 ID 联合读取单条快照正文，跨客户返回 404 |
 | GET/POST | `/api/module-items` | 深层业务模块列表与新增 |
 | PATCH | `/api/module-items/:id` | 更新业务记录与状态 |
 | GET/PUT | `/api/module-settings/:module` | 实名认证、AI 智能体配置读写 |
 
 `POST /api/observations` 的 `observedAt` 支持 `YYYY-MM-DD` 以及带时间的 ISO 格式，非法日期返回 `400`；排名只保留正整数，小数会四舍五入，未提及样本的排名和引用自动归空。
+
+快照相关可选字段包括 `externalId`、`answerText`、`sourceUrl`、`referenceCount`、`capturedAt` 和 `conversionTarget`。`sourceUrl` 只接受 `http` 或 `https` 地址；列表接口只返回 `has_content` 等轻量字段，完整 `answer_text` 只由单条详情接口返回。平台原始链接可能要求该平台的有效登录状态。

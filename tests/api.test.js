@@ -64,14 +64,15 @@ test('new keywords are persisted and returned by the API', async () => {
 
 test('dashboard metrics are derived from observation rows', () => {
   const dashboard = dashboardFor(database, 1)
-  assert.equal(dashboard.samples, 25)
+  assert.equal(dashboard.samples, 26)
   assert.equal(dashboard.platforms, 5)
-  assert.equal(dashboard.words, 5)
+  assert.equal(dashboard.words, 6)
   assert.ok(dashboard.visibilityRate > 0 && dashboard.visibilityRate <= 100)
   assert.equal(dashboard.platformStats.length, 5)
-  assert.equal(dashboard.currentPeriod.samples + dashboard.baselinePeriod.samples, 25)
-  assert.equal(dashboard.currentPeriod.from, '2026-08-04')
-  assert.equal(dashboard.baselinePeriod.to, '2026-08-03')
+  assert.equal(dashboard.currentPeriod.samples + dashboard.baselinePeriod.samples, 26)
+  assert.equal(dashboard.currentPeriod.from, '2026-08-05')
+  assert.equal(dashboard.currentPeriod.to, '2026-08-11')
+  assert.equal(dashboard.baselinePeriod.to, '2026-08-04')
   assert.equal(dashboard.mentionRate, dashboard.currentPeriod.mentionRate)
   assert.equal(dashboard.citationProbability, dashboard.currentPeriod.citationProbability)
   assert.ok(dashboard.citationProbability >= 0 && dashboard.citationProbability <= 100)
@@ -132,6 +133,66 @@ test('采样写入拒绝非法时间并统一排名口径', async () => {
     .send({ customerId: 1, platform: '测试平台', keyword: '排名归一探针', mentioned: 1, rank: 1.7, observedAt: '2026-08-08 10:00:00' })
   assert.equal(normalizedRank.status, 201)
   assert.equal(normalizedRank.body.rank, 2)
+})
+
+test('采样凭证详情可回查且严格按客户隔离', async () => {
+  const list = await request(app)
+    .get('/api/observations?customerId=1')
+    .set('Authorization', `Bearer ${token}`)
+  const target = list.body[0]
+  const detail = await request(app)
+    .get(`/api/observations/${target.id}?customerId=1`)
+    .set('Authorization', `Bearer ${token}`)
+  assert.equal(detail.status, 200)
+  assert.equal(detail.body.id, target.id)
+  assert.ok(['PC', '移动端', '未记录'].includes(detail.body.device))
+  assert.equal(detail.body.customer_brand, '智焰 AI')
+  assert.equal(detail.body.customer_company, '智焰科技有限公司')
+
+  const wrongCustomer = await request(app)
+    .get(`/api/observations/${target.id}?customerId=2`)
+    .set('Authorization', `Bearer ${token}`)
+  assert.equal(wrongCustomer.status, 404)
+
+  const unauthenticated = await request(app).get(`/api/observations/${target.id}?customerId=1`)
+  assert.equal(unauthenticated.status, 401)
+})
+
+test('真实豆包快照列表保持轻量，详情保存正文与原始会话入口', async () => {
+  const list = await request(app)
+    .get('/api/observations?customerId=1')
+    .set('Authorization', `Bearer ${token}`)
+  const target = list.body.find((row) => row.external_id === 'doubao-38436432341358082')
+  assert.ok(target)
+  assert.equal(target.platform, '豆包')
+  assert.equal(target.has_content, 1)
+  assert.equal(target.reference_count, 18)
+  assert.equal(target.source_url, 'https://www.doubao.com/chat/38436432341358082')
+  assert.equal(Object.hasOwn(target, 'answer_text'), false)
+
+  const detail = await request(app)
+    .get(`/api/observations/${target.id}?customerId=1`)
+    .set('Authorization', `Bearer ${token}`)
+  assert.equal(detail.status, 200)
+  assert.match(detail.body.answer_text, /四、颜汝与智焰科技专项核实说明/)
+  assert.match(detail.body.answer_text, /无法核验的信息/)
+  assert.equal(detail.body.captured_at, '2026-08-11 14:45:31')
+})
+
+test('快照写入拒绝危险来源协议并接受 HTTPS 原始会话', async () => {
+  const rejected = await request(app)
+    .post('/api/observations')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ customerId: 1, platform: '测试平台', keyword: '危险链接', mentioned: 1, observedAt: '2026-08-11 16:00:00', sourceUrl: 'javascript:alert(1)' })
+  assert.equal(rejected.status, 400)
+
+  const created = await request(app)
+    .post('/api/observations')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ customerId: 1, externalId: 'test-source-https', platform: '测试平台', keyword: '合法链接', mentioned: 1, observedAt: '2026-08-11 16:01:00', answerText: '已保存的平台回答', sourceUrl: 'https://example.com/chat/1', referenceCount: 2 })
+  assert.equal(created.status, 201)
+  assert.equal(created.body.source_url, 'https://example.com/chat/1')
+  assert.equal(created.body.reference_count, 2)
 })
 
 test('deep GEO module records can be created, filtered and moved to a new status', async () => {

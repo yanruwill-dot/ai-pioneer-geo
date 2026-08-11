@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { buildGeoInsights } from '../shared/geoInsights.js'
+import { RECORDED_DOUBAO_EVIDENCE } from '../shared/recordedEvidence.js'
 
 const DEMO_PASSWORD_HASH = '0680b7692b003bed70276631a9cf30bf50e8794ecf86c3d63a6b4b9ec56436dfdbb2e2588b8a0ee3490a3e58afe0e82aea3d580f0db28f6b3fef63e4f6a93b57'
 const DEMO_PASSWORD_SALT = 'zx-demo-salt-2026'
@@ -75,13 +76,20 @@ export function createDatabase(filename = resolve('data/geo.sqlite')) {
     CREATE TABLE IF NOT EXISTS observations (
       id INTEGER PRIMARY KEY,
       customer_id INTEGER NOT NULL REFERENCES customers(id),
+      external_id TEXT,
       platform TEXT NOT NULL,
       keyword TEXT NOT NULL,
       rank INTEGER,
       mentioned INTEGER NOT NULL DEFAULT 0,
       cited INTEGER NOT NULL DEFAULT 0,
       sentiment TEXT NOT NULL DEFAULT '正向',
-      observed_at TEXT NOT NULL
+      device TEXT NOT NULL DEFAULT '未记录',
+      observed_at TEXT NOT NULL,
+      answer_text TEXT,
+      source_url TEXT,
+      reference_count INTEGER NOT NULL DEFAULT 0,
+      captured_at TEXT,
+      conversion_target TEXT
     );
     CREATE TABLE IF NOT EXISTS module_items (
       id INTEGER PRIMARY KEY,
@@ -104,6 +112,23 @@ export function createDatabase(filename = resolve('data/geo.sqlite')) {
       UNIQUE(customer_id, module)
     );
   `)
+  const observationColumns = db.prepare('PRAGMA table_info(observations)').all()
+  const observationMigrations = [
+    ['device', "TEXT NOT NULL DEFAULT '未记录'"],
+    ['external_id', 'TEXT'],
+    ['answer_text', 'TEXT'],
+    ['source_url', 'TEXT'],
+    ['reference_count', 'INTEGER NOT NULL DEFAULT 0'],
+    ['captured_at', 'TEXT'],
+    ['conversion_target', 'TEXT'],
+  ]
+  for (const [name, definition] of observationMigrations) {
+    if (!observationColumns.some((column) => column.name === name)) {
+      db.exec(`ALTER TABLE observations ADD COLUMN ${name} ${definition}`)
+    }
+  }
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_observations_external_id
+    ON observations(external_id) WHERE external_id IS NOT NULL`)
   seed(db)
   return db
 }
@@ -118,6 +143,7 @@ function seed(db) {
   const count = db.prepare('SELECT COUNT(*) AS total FROM customers').get().total
   if (count) {
     seedModules(db)
+    seedRecordedEvidence(db)
     return
   }
 
@@ -171,8 +197,8 @@ function seed(db) {
   const platforms = ['DeepSeek', '豆包', '元宝', '文心一言', '通义千问']
   const words = keywordRows.map((row) => row[0])
   const insertObservation = db.prepare(`INSERT INTO observations
-    (customer_id, platform, keyword, rank, mentioned, cited, sentiment, observed_at)
-    VALUES (1, ?, ?, ?, ?, ?, ?, ?)`)
+    (customer_id, platform, keyword, rank, mentioned, cited, sentiment, device, observed_at)
+    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)`)
   let index = 0
   for (const platform of platforms) {
     for (const word of words) {
@@ -185,12 +211,53 @@ function seed(db) {
         mentioned,
         cited,
         index % 7 === 0 ? '中性' : '正向',
+        index % 2 === 0 ? 'PC' : '移动端',
         `2026-08-${String((index % 7) + 1).padStart(2, '0')} 09:00`,
       )
       index += 1
     }
   }
   seedModules(db)
+  seedRecordedEvidence(db)
+}
+
+function seedRecordedEvidence(db) {
+  const evidence = RECORDED_DOUBAO_EVIDENCE
+  const customer = db.prepare('SELECT id FROM customers WHERE id = ?').get(evidence.customerId)
+  if (!customer) return
+
+  const existing = db.prepare(`SELECT id FROM observations
+    WHERE external_id = ? OR source_url = ? LIMIT 1`).get(evidence.externalId, evidence.sourceUrl)
+  const values = [
+    evidence.externalId,
+    evidence.customerId,
+    evidence.platform,
+    evidence.keyword,
+    evidence.rank,
+    Number(evidence.mentioned) ? 1 : 0,
+    Number(evidence.mentioned) && Number(evidence.cited) ? 1 : 0,
+    evidence.sentiment,
+    evidence.device,
+    evidence.observedAt,
+    evidence.answerText,
+    evidence.sourceUrl,
+    Math.max(0, Math.trunc(Number(evidence.referenceCount) || 0)),
+    evidence.capturedAt,
+    evidence.conversionTarget,
+  ]
+
+  if (existing) {
+    db.prepare(`UPDATE observations SET
+      external_id = ?, customer_id = ?, platform = ?, keyword = ?, rank = ?, mentioned = ?, cited = ?,
+      sentiment = ?, device = ?, observed_at = ?, answer_text = ?, source_url = ?, reference_count = ?,
+      captured_at = ?, conversion_target = ? WHERE id = ?`).run(...values, existing.id)
+    return
+  }
+
+  db.prepare(`INSERT INTO observations
+    (external_id, customer_id, platform, keyword, rank, mentioned, cited, sentiment, device, observed_at,
+      answer_text, source_url, reference_count, captured_at, conversion_target)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(...values)
 }
 
 function seedModules(db) {

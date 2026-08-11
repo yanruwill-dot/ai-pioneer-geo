@@ -52,6 +52,10 @@ import {
   YAxis,
 } from 'recharts'
 import { api, authStore, currentCustomer, isStaticDemo, setCurrentCustomer } from './api.js'
+import { crmTitleFor } from './crmData.js'
+import { CrmCases, CrmFinance, CrmOrders, CrmOverview } from './crmPages.jsx'
+import { EvidenceSnapshotPage } from './EvidenceSnapshotPage.jsx'
+import { safeHttpUrl, snapshotRoute } from './evidence.js'
 
 const AuthContext = createContext(null)
 
@@ -68,6 +72,7 @@ function LoginPage() {
   const [, navigate] = useLocation()
   const { setUser } = useContext(AuthContext)
   const [form, setForm] = useState({ username: 'yanru', password: '123456' })
+  const [loginMode, setLoginMode] = useState('account')
   const [agreed, setAgreed] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -75,6 +80,7 @@ function LoginPage() {
   const submit = async (event) => {
     event.preventDefault()
     if (!agreed) return setError('请先同意平台隐私政策与用户服务协议')
+    if (loginMode === 'sms') return setError('演示环境暂未接入短信验证码，请切换到账号登录')
     setLoading(true)
     setError('')
     try {
@@ -104,15 +110,15 @@ function LoginPage() {
       </section>
       <section className="login-panel-wrap">
         <form className="login-panel" onSubmit={submit}>
-          <div className="login-tabs"><button type="button" className="active">账号登录</button><button type="button">短信登录</button></div>
+          <div className="login-tabs"><button type="button" className={loginMode === 'account' ? 'active' : ''} onClick={() => { setLoginMode('account'); setError('') }}>账号登录</button><button type="button" className={loginMode === 'sms' ? 'active' : ''} onClick={() => { setLoginMode('sms'); setError('') }}>短信登录</button></div>
           <label className="field"><CircleUserRound size={20} /><input aria-label="账号" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="请输入账号" /></label>
           <label className="field"><KeyRound size={20} /><input aria-label="密码" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="请输入密码" /></label>
-          <div className="remember-row"><label><input type="checkbox" /> 记住密码</label><button type="button">忘记密码</button></div>
+          <div className="remember-row"><label><input type="checkbox" /> 记住密码</label><button type="button" onClick={() => navigate('/support/forgot-password')}>忘记密码</button></div>
           {error && <div className="form-error">{error}</div>}
           <button className="gradient-button" type="submit" disabled={loading}>{loading ? '正在进入…' : '登录'}</button>
           <label className="agree"><input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} /><span>我已阅读并同意 《平台隐私政策》 与 《平台用户服务协议》</span></label>
           {isStaticDemo && <div className="public-demo-note"><Globe2 size={15} /><span>GitHub Pages 演示版 · 操作数据只保存在当前浏览器</span></div>}
-          <div className="register-hint">没有注册？ <button type="button">点击注册</button></div>
+          <div className="register-hint">没有注册？ <button type="button" onClick={() => navigate('/register')}>点击注册</button></div>
         </form>
       </section>
     </main>
@@ -131,32 +137,35 @@ function Modal({ open, onClose, title, children, wide = false }) {
   )
 }
 
-function Topbar({ crm = false, onMenu }) {
+function Topbar({ crm = false, crmTitle = '客户管理', onMenu }) {
   const { user, logout } = useContext(AuthContext)
+  const [, navigate] = useLocation()
   return (
     <header className="topbar">
-      <button className="mobile-menu" onClick={onMenu}><Menu /></button>
-      <div className="topbar-breadcrumb"><span>{crm ? '合作商业务管理' : currentCustomer().brand}</span><ChevronRight size={14} /><b>{crm ? '客户管理' : 'GEO 运营中台'}</b></div>
+      <button className="mobile-menu" aria-label="打开导航菜单" onClick={onMenu}><Menu /></button>
+      <div className="topbar-breadcrumb"><span>{crm ? '合作商业务管理' : currentCustomer().brand}</span><ChevronRight size={14} /><b>{crm ? crmTitle : 'GEO 运营中台'}</b></div>
       {isStaticDemo && <span className="demo-mode-badge"><Globe2 size={13} /> 浏览器演示数据</span>}
-      <div className="topbar-actions"><button title="消息"><Bell size={19} /><i /></button><div className="avatar">{user?.name?.slice(0, 1) || 'AI'}</div><div className="user-copy"><b>{user?.name}</b><span>{user?.role}</span></div><button title="退出登录" onClick={logout}><LogOut size={18} /></button></div>
+      <div className="topbar-actions"><button title="消息" aria-label="消息" onClick={() => navigate('/messages')}><Bell size={19} /><i /></button><div className="avatar">{user?.name?.slice(0, 1) || 'AI'}</div><div className="user-copy"><b>{user?.name}</b><span>{user?.role}</span></div><button title="退出登录" aria-label="退出登录" onClick={logout}><LogOut size={18} /></button></div>
     </header>
   )
 }
 
 const crmNav = [
-  [Gauge, '工作台'], [UsersRound, '客户管理'], [Target, '订单管理'], [FileChartColumn, '财务流水'], [BookOpenText, 'GEO 案例'],
+  [Gauge, '工作台', '/crm/overview'], [UsersRound, '客户管理', '/crm/customers'], [Target, '订单管理', '/crm/orders'], [FileChartColumn, '财务流水', '/crm/finance'], [BookOpenText, 'GEO 案例', '/crm/cases'],
 ]
 
 function CrmShell({ children }) {
   const [open, setOpen] = useState(false)
+  const [location, navigate] = useLocation()
+  const crmTitle = crmTitleFor(location)
   return (
     <div className="app-shell crm-shell">
       <aside className={`sidebar crm-sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-brand"><Brand crm /></div>
-        <nav>{crmNav.map(([Icon, name], index) => <button className={index === 1 ? 'active' : ''} key={name}><Icon size={19} /><span>{name}</span>{index === 1 && <i />}</button>)}</nav>
-        <div className="sidebar-foot"><Settings2 size={18} /><span>系统设置</span></div>
+        <nav>{crmNav.map(([Icon, name, path]) => <button className={location === path ? 'active' : ''} key={name} onClick={() => { navigate(path); setOpen(false) }}><Icon size={19} /><span>{name}</span>{location === path && <i />}</button>)}</nav>
+        <button className="sidebar-foot" onClick={() => navigate('/settings')}><Settings2 size={18} /><span>系统设置</span></button>
       </aside>
-      <div className="app-main"><Topbar crm onMenu={() => setOpen(!open)} />{children}</div>
+      <div className="app-main"><Topbar crm crmTitle={crmTitle} onMenu={() => setOpen(!open)} />{children}</div>
     </div>
   )
 }
@@ -168,6 +177,7 @@ function CrmCustomers() {
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState({ company: '', brand: '', account: '', city: '' })
   const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('全部客户')
   const load = () => api('/crm/customers').then(setCustomers)
   useEffect(() => { load() }, [])
 
@@ -181,7 +191,11 @@ function CrmCustomers() {
     setCurrentCustomer(result.customer)
     navigate(result.redirect)
   }
-  const visible = customers.filter((item) => `${item.company}${item.brand}${item.account}`.toLowerCase().includes(query.toLowerCase()))
+  const visible = customers.filter((item) => {
+    const matchesQuery = `${item.company}${item.brand}${item.account}`.toLowerCase().includes(query.toLowerCase())
+    const matchesStatus = statusFilter === '全部客户' || (statusFilter === '待跟进' && item.status === '待配置') || (statusFilter === '已到期' && item.status === '已到期')
+    return matchesQuery && matchesStatus
+  })
   const primaryCustomer = customers.find((item) => item.id === currentCustomer().id) || customers.find((item) => item.status === '服务中') || customers[0]
 
   return (
@@ -195,15 +209,15 @@ function CrmCustomers() {
         <div><span>本月新增</span><b>2</b><small>家</small></div>
       </div>
       <section className="data-card">
-        <div className="data-toolbar"><div className="search-box"><Search size={17} /><input placeholder="搜索客户名称、品牌或账号" value={query} onChange={(e) => setQuery(e.target.value)} /></div><div className="table-tabs"><button className="active">全部客户</button><button>待跟进</button><button>已到期</button></div></div>
+        <div className="data-toolbar"><div className="search-box"><Search size={17} /><input placeholder="搜索客户名称、品牌或账号" value={query} onChange={(e) => setQuery(e.target.value)} /></div><div className="table-tabs">{['全部客户', '待跟进', '已到期'].map((item) => <button key={item} className={statusFilter === item ? 'active' : ''} onClick={() => setStatusFilter(item)}>{item}</button>)}</div></div>
         <div className="table-scroll"><table><thead><tr><th>客户名称 / 品牌</th><th>登录账号</th><th>所属城市</th><th>产品</th><th>客户状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>{visible.map((customer) => <tr key={customer.id}><td><div className="company-cell"><span>{customer.brand.slice(0, 1)}</span><div><b>{customer.company}</b><small>{customer.brand}</small></div></div></td><td>{customer.account}</td><td>{customer.city || '-'}</td><td><span className="tag blue">{customer.product}</span></td><td><span className={`status-dot ${customer.status === '服务中' ? 'success' : ''}`}>{customer.status}</span></td><td>{customer.created_at?.slice(0, 10)}</td><td><button className="geo-row-action" aria-label={`进入 ${customer.brand} 的 GEO 工作台`} onClick={() => setLaunch(customer)}><CircleUserRound size={17} /><span>进入 GEO</span><ChevronRight size={15} /></button></td></tr>)}</tbody></table></div>
       </section>
       <Modal open={!!launch} onClose={() => setLaunch(null)} title={`进入 ${launch?.brand || ''}`} wide>
         <p className="modal-copy">选择要进入的业务平台。GEO 将带入该客户身份和数据权限。</p>
         <div className="product-grid">
           <button className="product-card active" onClick={enterGeo}><div className="product-icon"><Sparkles /></div><div><b>GEO 工作台</b><span>全域 AI 搜索营销 · 点击进入</span></div><ChevronRight /></button>
-          <button className="product-card disabled"><div className="product-icon"><Play /></div><div><b>短视频 SEO</b><span>视频搜索与分发</span></div><span className="soon">未开通</span></button>
-          <button className="product-card disabled"><div className="product-icon"><Globe2 /></div><div><b>搜索引擎 SEO</b><span>传统搜索增长</span></div><span className="soon">未开通</span></button>
+          <button className="product-card" onClick={() => { setLaunch(null); navigate('/geo/video-seo') }}><div className="product-icon"><Play /></div><div><b>短视频 SEO</b><span>视频搜索与分发</span></div><span className="soon">查看入口</span></button>
+          <button className="product-card" onClick={() => { setLaunch(null); navigate('/geo/seo') }}><div className="product-icon"><Globe2 /></div><div><b>搜索引擎 SEO</b><span>传统搜索增长</span></div><span className="soon">查看入口</span></button>
         </div>
       </Modal>
       <Modal open={adding} onClose={() => setAdding(false)} title="新建客户">
@@ -313,10 +327,10 @@ function GeoDashboard() {
       <div className="dashboard-grid">
         <section className="chart-card wide"><div className="card-heading"><div><span>趋势观察 · 采样明细</span><h3>提及率与被引用概率趋势</h3></div><span className="chart-note">按日回传样本计算</span></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><AreaChart data={data.trend}><defs><linearGradient id="mentionRateFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#315ff4" stopOpacity={0.32} /><stop offset="100%" stopColor="#315ff4" stopOpacity={0.02} /></linearGradient></defs><CartesianGrid stroke="#edf0f8" vertical={false} /><XAxis dataKey="date" axisLine={false} tickLine={false} /><YAxis domain={[0, 100]} unit="%" axisLine={false} tickLine={false} /><Tooltip formatter={(value) => `${value}%`} /><Area type="monotone" dataKey="mentionRate" name="AI 提及率" stroke="#315ff4" strokeWidth={3} fill="url(#mentionRateFill)" /><Area type="monotone" dataKey="citationProbability" name="被引用概率" stroke="#16b77a" strokeWidth={2} fill="transparent" /></AreaChart></ResponsiveContainer></div></section>
         <section className="chart-card"><div className="card-heading"><div><span>平台分布</span><h3>AI 平台曝光统计</h3></div></div><div className="pie-wrap"><ResponsiveContainer width="100%" height={220}><PieChart><Pie data={pieData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={86} paddingAngle={3}>{pieData.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer><div className="pie-legend">{pieData.map((item, i) => <div key={item.name}><i style={{ background: colors[i] }} /><span>{item.name}</span><b>{item.value}</b></div>)}</div></div></section>
-        <section className="chart-card wide"><div className="card-heading"><div><span>排名表现</span><h3>各平台收录与平均排名</h3></div><button className="text-button">查看完整报告 <ChevronRight size={15} /></button></div><div className="platform-bars">{data.platformStats.map((item, index) => <div className="platform-row" key={item.platform}><div className="platform-name"><span style={{ background: colors[index] }}>{item.platform.slice(0, 1)}</span><b>{item.platform}</b></div><div className="bar-track"><i style={{ width: `${(item.mentions / Math.max(...data.platformStats.map((p) => p.samples))) * 100}%`, background: colors[index] }} /></div><b>{item.mentions}/{item.samples}</b><span>平均排名 {item.averageRank || '-'}</span></div>)}</div></section>
+        <section className="chart-card wide"><div className="card-heading"><div><span>排名表现</span><h3>各平台收录与平均排名</h3></div><button className="text-button" onClick={() => navigate('/geo/report')}>查看完整报告 <ChevronRight size={15} /></button></div><div className="platform-bars">{data.platformStats.map((item, index) => <div className="platform-row" key={item.platform}><div className="platform-name"><span style={{ background: colors[index] }}>{item.platform.slice(0, 1)}</span><b>{item.platform}</b></div><div className="bar-track"><i style={{ width: `${(item.mentions / Math.max(...data.platformStats.map((p) => p.samples))) * 100}%`, background: colors[index] }} /></div><b>{item.mentions}/{item.samples}</b><span>平均排名 {item.averageRank || '-'}</span></div>)}</div></section>
         <section className="chart-card scene-card"><div className="card-heading"><div><span>LONG-TAIL CONTEXT</span><h3>拓展词出现的场景</h3></div><span className="chart-note">按关键词分类聚合</span></div><div className="scene-list">{data.keywordScenes.map((item) => <div className="scene-row" key={`${item.category}-${item.scene}`}><div className="scene-title"><b>{item.scene}</b><span>{item.category} · {item.keywordCount} 个词</span></div><div className="scene-bar"><i style={{ width: `${item.mentionRate}%` }} /></div><strong>{item.mentionRate}%</strong><small>提及率</small><div className="scene-meta"><span>被引用 {item.citationProbability}%</span><em>{item.topTerms.join('、')}</em></div></div>)}</div></section>
         <section className="chart-card evidence-card"><div className="card-heading"><div><span>MEASUREMENT RULES</span><h3>指标口径与回查</h3></div></div><dl className="evidence-list"><div><dt>提及率</dt><dd>{data.currentPeriod.mentions} / {data.currentPeriod.samples} = {data.mentionRate}%</dd></div><div><dt>被引用概率</dt><dd>{data.currentPeriod.citations} / {data.currentPeriod.mentions || 0} = {data.citationProbability}%</dd></div><div><dt>当前周期</dt><dd>{data.currentPeriod.from || '-'} 至 {data.currentPeriod.to || '-'}</dd></div><div><dt>基线周期</dt><dd>{data.baselinePeriod.from || '-'} 至 {data.baselinePeriod.to || '-'} · {data.baselinePeriod.samples} 条</dd></div></dl><button className="text-button" onClick={() => navigate('/geo/report')}>查看每条采样答案 <ChevronRight size={15} /></button></section>
-        <section className="journey-card"><div><span>当前 GEO 阶段</span><h3>从“被看见”走向“被推荐”</h3></div><div className="journey-steps">{['立身份', '建资产', '布信源', '发全域', '盯数据'].map((step, i) => <div className={i < 4 ? 'done' : 'active'} key={step}><i>{i + 1}</i><span>{step}</span></div>)}</div><button className="primary-button">继续优化 <WandSparkles size={17} /></button></section>
+        <section className="journey-card"><div><span>当前 GEO 阶段</span><h3>从“被看见”走向“被推荐”</h3></div><div className="journey-steps">{['立身份', '建资产', '布信源', '发全域', '盯数据'].map((step, i) => <div className={i < 4 ? 'done' : 'active'} key={step}><i>{i + 1}</i><span>{step}</span></div>)}</div><button className="primary-button" onClick={() => navigate('/geo/keywords')}>继续优化 <WandSparkles size={17} /></button></section>
       </div>
     </main>
   )
@@ -334,6 +348,8 @@ function ResourcePage({ type }) {
   const config = resourceConfig[type]
   const [rows, setRows] = useState([])
   const [open, setOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [query, setQuery] = useState('')
   const [error, setError] = useState('')
   const [form, setForm] = useState({})
   const Icon = config.icon
@@ -350,6 +366,7 @@ function ResourcePage({ type }) {
     try { await api(config.endpoint, { method: 'POST', body: JSON.stringify(payload) }); setOpen(false); setForm({}); load() } catch (err) { setError(err.message) }
   }
   const toggle = async (id) => { await api(`/automations/${id}/toggle`, { method: 'PATCH' }); load() }
+  const visible = rows.filter((row) => `${row.name || ''}${row.word || ''}${row.title || ''}${row.content || ''}`.toLowerCase().includes(query.toLowerCase()))
 
   const columns = useMemo(() => {
     if (type === 'keywords') return ['关键词', '分类', '搜索量', '训练状态', '创建时间']
@@ -368,7 +385,7 @@ function ResourcePage({ type }) {
     <main className="content-page resource-page">
       <div className="page-heading"><div><span className="section-kicker">{type === 'automations' ? 'INTELLIGENT WORKFLOW' : 'GEO ASSET CENTER'}</span><h1>{config.title}</h1><p>{config.subtitle}</p></div>{config.button && <button className="primary-button" onClick={() => setOpen(true)}><Plus size={18} /> {config.button}</button>}</div>
       <div className="resource-summary"><div className="resource-icon"><Icon /></div><div><span>当前共 {rows.length} 项</span><b>{type === 'publish' ? '把内容送到 AI 信任的地方' : type === 'automations' ? '让系统持续执行重复工作' : '让品牌成为可信答案源'}</b></div><div className="summary-progress"><span>完成度</span><div><i style={{ width: type === 'automations' ? '72%' : '84%' }} /></div><b>{type === 'automations' ? '72%' : '84%'}</b></div></div>
-      <section className="data-card"><div className="data-toolbar"><div className="search-box"><Search size={17} /><input placeholder={`搜索${config.title}`} /></div><button className="filter-button"><Settings2 size={16} /> 筛选</button></div><div className="table-scroll"><table><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.id}>{cells(row).map((cell, index) => <td key={index}>{cell}</td>)}</tr>)}</tbody></table></div></section>
+      <section className="data-card"><div className="data-toolbar"><div className="search-box"><Search size={17} /><input placeholder={`搜索${config.title}`} value={query} onChange={(e) => setQuery(e.target.value)} /></div><button className="filter-button" onClick={() => setFilterOpen((current) => !current)}><Settings2 size={16} /> {filterOpen ? '收起筛选' : '筛选'}</button></div>{filterOpen && <div className="notice-bar"><Settings2 size={16} /><span>筛选面板已打开：输入关键词可即时过滤当前{config.title}。</span></div>}<div className="table-scroll"><table><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{visible.map((row) => <tr key={row.id}>{cells(row).map((cell, index) => <td key={index}>{cell}</td>)}</tr>)}</tbody></table></div>{!visible.length && <div className="empty-state"><Search /><b>暂无匹配数据</b><span>调整搜索条件后再试。</span></div>}</section>
       <Modal open={open} onClose={() => setOpen(false)} title={config.button}>
         <form className="modal-form" onSubmit={create}>
           <label>{type === 'keywords' ? '关键词' : type === 'knowledge' ? '知识标题' : '任务标题'}<input required value={form.title || ''} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
@@ -386,6 +403,7 @@ function ResourcePage({ type }) {
 
 function ReportPage() {
   const customer = currentCustomer()
+  const [, navigate] = useLocation()
   const [data, setData] = useState(null)
   const [rows, setRows] = useState([])
   const [platform, setPlatform] = useState('全部平台')
@@ -399,17 +417,16 @@ function ReportPage() {
   const platformNames = ['DeepSeek', '豆包', '元宝', '文心一言', '千问', '纳米AI', 'Kimi', '讯飞星火', '百度AI', '抖音AI', '夸克AI']
   const normalizePlatform = (name) => name === '通义千问' ? '千问' : name
   const platformLookup = Object.fromEntries(data.platformStats.map((item) => [normalizePlatform(item.platform), item]))
-  const filteredRows = rows.filter((row, index) => {
+  const filteredRows = rows.filter((row) => {
     const matchesPlatform = platform === '全部平台' || normalizePlatform(row.platform) === platform
-    const rowDevice = index % 2 === 0 ? 'PC' : '移动端'
-    return matchesPlatform && (device === '全部设备' || device === rowDevice) && row.keyword.toLowerCase().includes(query.toLowerCase()) && (reportTab === '全部' || row.mentioned)
+    return matchesPlatform && (device === '全部设备' || device === row.device) && row.keyword.toLowerCase().includes(query.toLowerCase()) && (reportTab === '全部' || row.mentioned)
   })
   return <main className="content-page report-page">
     <div className="report-command"><div><span>AI SEARCH MARKETING REPORT</span><h1>AI搜索营销报表</h1><p>数据更新时间：{data.dateRange.to || '-'} · 当前回传 {data.samples} 条采样</p></div><button className="primary-button" onClick={async () => { await navigator.clipboard?.writeText(location.href); setShared(true); setTimeout(() => setShared(false), 1800) }}>{shared ? '链接已复制' : '分享报表'}</button></div>
     <section className="model-map-card"><div className="model-map-center"><Sparkles /><b>AI 搜索</b><span>{data.samples} 次采样</span></div><div className="model-platforms">{platformNames.map((name, index) => <button key={name} className={platform === name ? 'active' : ''} onClick={() => setPlatform(platform === name ? '全部平台' : name)}><i>{name.slice(0, 1)}</i><span>{name}</span><b>{platformLookup[name]?.mentions || 0}</b><em>{index < 8 ? '大模型' : 'AI搜索'}</em></button>)}</div></section>
     <div className="report-metrics report-metrics-detailed"><div><span>AI 提及率</span><b>{data.mentionRate}%</b><em>基线 {data.baselineMentionRate}% · {data.mentionRateDelta >= 0 ? '+' : ''}{data.mentionRateDelta} 个百分点</em></div><div><span>被引用概率</span><b>{data.citationProbability}%</b><em>基线 {data.baselineCitationProbability}% · {data.currentPeriod.citations}/{data.currentPeriod.mentions || 0}</em></div><div><span>AI搜索词数量</span><b>{data.words}</b><em>{data.keywordScenes.length} 个场景，{data.samples} 条样本</em></div><div><span>有回传样本的平台</span><b>{data.platforms}</b><em>当前数据范围 {data.dateRange.from || '-'} 至 {data.dateRange.to || '-'}</em></div></div>
     <div className="report-analysis-grid"><section className="chart-card"><div className="card-heading"><div><span>ARTICLE &amp; CITATION TREND</span><h3>文章数据与收录趋势</h3></div><select><option>全部周期</option></select></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><AreaChart data={data.trend}><CartesianGrid stroke="#edf0f8" vertical={false} /><XAxis dataKey="date" axisLine={false} tickLine={false} /><YAxis domain={[0, 100]} unit="%" axisLine={false} tickLine={false} /><Tooltip formatter={(value) => `${value}%`} /><Area type="monotone" dataKey="mentionRate" name="AI 提及率" stroke="#315ff4" strokeWidth={3} fill="#e9edff" /><Area type="monotone" dataKey="citationProbability" name="被引用概率" stroke="#a25eef" strokeWidth={2} fill="transparent" /></AreaChart></ResponsiveContainer></div></section><aside className="conversion-card"><div className="home-card-title"><Target size={17} /><b>AI 搜索转化目标收录</b></div><div><span>可验证信源曝光</span><b>{data.citations}</b><i style={{ width: `${data.citationRate}%` }} /></div><div><span>品牌名称曝光</span><b>{data.mentions}</b><i style={{ width: `${data.mentionRate}%` }} /></div><div><span>未形成引用</span><b>{Math.max(0, data.samples - data.citations)}</b><i style={{ width: `${Math.max(0, 100 - data.citationRate)}%` }} /></div></aside></div>
-    <section className="data-card report-detail-card"><div className="report-table-tabs"><button className={reportTab === '全部' ? 'active' : ''} onClick={() => setReportTab('全部')}>全部 <span>{rows.length}</span></button><button className={reportTab === '搜索报表' ? 'active' : ''} onClick={() => setReportTab('搜索报表')}>搜索报表 <span>{rows.filter((row) => row.mentioned).length}</span></button></div><div className="report-note">由于大模型动态学习和结果个性化，不同时间、区域与设备的查询结果可能存在差异。</div><div className="data-toolbar"><div className="filter-line"><select value={platform} onChange={(e) => setPlatform(e.target.value)}><option>全部平台</option>{platformNames.map((name) => <option key={name}>{name}</option>)}</select><select value={device} onChange={(e) => setDevice(e.target.value)}><option>全部设备</option><option>PC</option><option>移动端</option></select><div className="search-box"><Search size={17} /><input aria-label="搜索问题" placeholder="请输入问题" value={query} onChange={(e) => setQuery(e.target.value)} /></div></div><button className="filter-button" onClick={() => { setPlatform('全部平台'); setDevice('全部设备'); setQuery(''); setReportTab('全部') }}><SlidersHorizontal size={16} /> 重置筛选</button></div><div className="table-scroll"><table><thead><tr><th>序号</th><th>问题</th><th>平台</th><th>设备</th><th>查询时间</th><th>转化目标</th><th>操作</th></tr></thead><tbody>{filteredRows.slice(0, 30).map((row, index) => <tr key={row.id}><td>{index + 1}</td><td><b>{row.keyword}</b></td><td>{normalizePlatform(row.platform)}</td><td>{index % 2 === 0 ? 'PC' : '移动端'}</td><td>{row.observed_at?.slice(0, 16)}</td><td><span className={`tag ${row.cited ? 'green' : 'blue'}`}>{row.cited ? '官网链接 / 品牌名' : row.mentioned ? '品牌名称' : '未收录'}</span></td><td><button className="table-action" onClick={() => setDetail(row)}>查看答案</button></td></tr>)}</tbody></table></div>{!filteredRows.length && <div className="empty-state"><Search /><b>暂无匹配数据</b><span>切换平台、设备或问题关键词后再试。</span></div>}</section>
+    <section className="data-card report-detail-card"><div className="report-table-tabs"><button className={reportTab === '全部' ? 'active' : ''} onClick={() => setReportTab('全部')}>全部 <span>{rows.length}</span></button><button className={reportTab === '搜索报表' ? 'active' : ''} onClick={() => setReportTab('搜索报表')}>搜索报表 <span>{rows.filter((row) => row.mentioned).length}</span></button></div><div className="report-note">由于大模型动态学习和结果个性化，不同时间、区域与设备的查询结果可能存在差异。</div><div className="data-toolbar"><div className="filter-line"><select value={platform} onChange={(e) => setPlatform(e.target.value)}><option>全部平台</option>{platformNames.map((name) => <option key={name}>{name}</option>)}</select><select value={device} onChange={(e) => setDevice(e.target.value)}><option>全部设备</option><option>PC</option><option>移动端</option><option>未记录</option></select><div className="search-box"><Search size={17} /><input aria-label="搜索问题" placeholder="请输入问题" value={query} onChange={(e) => setQuery(e.target.value)} /></div></div><button className="filter-button" onClick={() => { setPlatform('全部平台'); setDevice('全部设备'); setQuery(''); setReportTab('全部') }}><SlidersHorizontal size={16} /> 重置筛选</button></div><div className="table-scroll"><table><thead><tr><th>序号</th><th>问题</th><th>平台</th><th>设备</th><th>查询时间</th><th>转化目标</th><th>操作</th></tr></thead><tbody>{filteredRows.slice(0, 30).map((row, index) => <tr key={row.id}><td>{index + 1}</td><td><b>{row.keyword}</b></td><td>{normalizePlatform(row.platform)}</td><td>{row.device || '未记录'}</td><td>{row.observed_at?.slice(0, 16)}</td><td><span className={`tag ${row.cited ? 'green' : 'blue'}`}>{row.conversion_target || (row.cited ? '官网链接 / 品牌名' : row.mentioned ? '品牌名称' : '未收录')}</span></td><td><div className="report-row-actions"><button className="table-action" onClick={() => row.has_content ? navigate(snapshotRoute(row.id, row.customer_id)) : setDetail(row)}>查看答案</button>{Boolean(row.has_content) && <button className="table-action evidence-action" aria-label={`打开 ${row.keyword} 的快照凭证`} onClick={() => navigate(snapshotRoute(row.id, row.customer_id))}>快照凭证</button>}{safeHttpUrl(row.source_url) && <a className="table-action" href={safeHttpUrl(row.source_url)} target="_blank" rel="noreferrer">转到平台</a>}</div></td></tr>)}</tbody></table></div>{!filteredRows.length && <div className="empty-state"><Search /><b>暂无匹配数据</b><span>切换平台、设备或问题关键词后再试。</span></div>}</section>
     <Modal open={!!detail} onClose={() => setDetail(null)} title="AI 搜索答案详情">{detail && <div className="detail-panel"><div className="detail-hero"><div><span>{normalizePlatform(detail.platform)} · {detail.observed_at?.slice(0, 16)}</span><h3>{detail.keyword}</h3></div><em className={`tag ${detail.mentioned ? 'green' : 'orange'}`}>{detail.mentioned ? `已收录 · TOP ${detail.rank}` : '未收录'}</em></div><dl><div><dt>转化目标</dt><dd>{detail.cited ? '官网链接、品牌名称' : '品牌名称'}</dd></div><div><dt>情感倾向</dt><dd>{detail.sentiment}</dd></div><div className="full"><dt>答案摘要</dt><dd>{detail.mentioned ? `本次回答提及了 ${customer.brand}，并将品牌能力与用户问题建立了明确关联。` : `本次回答暂未提及 ${customer.brand}，建议补充对应问题词的权威信源和结构化知识。`}</dd></div></dl><div className="form-actions"><button onClick={() => setDetail(null)}>关闭</button></div></div>}</Modal>
   </main>
 }
@@ -558,11 +575,25 @@ function SettingsPage({ module }) {
 function CompetitionPage() {
   const customer = currentCustomer()
   const [data, setData] = useState(null)
+  const [shared, setShared] = useState(false)
   useEffect(() => { api(`/dashboard?customerId=${customer.id}`).then(setData) }, [customer.id])
   if (!data) return <div className="page-loader"><BarChart3 /> 正在计算竞争力报告</div>
   const competitors = data.platformStats.map((item, index) => ({ platform: item.platform, brand: Math.round((item.mentions / item.samples) * 100), benchmark: [64, 72, 58, 69, 61][index] || 60 }))
   const citedPlatforms = data.platformStats.filter((item) => item.citations > 0).length
-  return <main className="content-page competition-page"><div className="competition-hero"><div><span>AI SEARCH COMPETITIVENESS</span><h1>{customer.brand} AI搜索竞争力分析报告</h1><p>基于当前工作区采样记录和配置参考值，分析品牌认知与平台表现。</p></div><button className="filter-button">分享报告</button></div><div className="report-section-title"><b>一. 报告概述</b><span>最近采样：{data.dateRange.to || '暂无样本'}</span></div><div className="report-metrics"><div><span>蒸馏词数量</span><b>{data.words}</b><em>核心问题资产</em></div><div><span>竞争力分析次数</span><b>{data.samples}</b><em>跨平台样本</em></div><div><span>覆盖 AI 平台</span><b>{data.platforms}</b><em>已回传样本</em></div><div><span>引用信源平台数</span><b>{citedPlatforms}</b><em>按引用明细聚合</em></div></div><section className="competition-grid"><div className="chart-card"><div className="card-heading"><div><span>平台对比</span><h3>品牌可见度与配置参考值</h3></div></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><BarChart data={competitors}><CartesianGrid stroke="#edf0f8" vertical={false} /><XAxis dataKey="platform" axisLine={false} tickLine={false} /><YAxis domain={[0, 100]} axisLine={false} tickLine={false} /><Tooltip /><Bar dataKey="brand" name={customer.brand} fill="#315ff4" radius={[6, 6, 0, 0]} /><Bar dataKey="benchmark" name="配置参考值" fill="#c9d1ef" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div></div><aside className="brand-profile"><span>二. 品牌画像</span><h2>{customer.brand}</h2><dl><div><dt>公司名称</dt><dd>{customer.company}</dd></div><div><dt>核心服务</dt><dd>GEO 策略、内容资产与多平台运营</dd></div><div><dt>综合可见度</dt><dd>{data.visibilityRate}%</dd></div><div><dt>正向样本率</dt><dd>{data.positiveSentimentRate}%</dd></div></dl><div className="profile-score"><span>竞争力指数</span><b>{Math.round((data.visibilityRate + data.positiveSentimentRate) / 2)}</b></div></aside></section><section className="data-card competitor-table"><div className="data-toolbar"><h3>三. AI 搜索平台分析</h3><span>品牌样本表现与配置参考值对比</span></div><div className="table-scroll"><table><thead><tr><th>平台</th><th>品牌可见度</th><th>配置参考值</th><th>差值</th><th>改进建议</th></tr></thead><tbody>{competitors.map((row) => <tr key={row.platform}><td><b>{row.platform}</b></td><td>{row.brand}%</td><td>{row.benchmark}%</td><td><span className={`tag ${row.brand >= row.benchmark ? 'green' : 'orange'}`}>{row.brand - row.benchmark >= 0 ? '+' : ''}{row.brand - row.benchmark}%</span></td><td>{row.brand >= row.benchmark ? '保持高质量引用与品牌问答覆盖' : '补充权威信源与平台适配内容'}</td></tr>)}</tbody></table></div></section></main>
+  return <main className="content-page competition-page"><div className="competition-hero"><div><span>AI SEARCH COMPETITIVENESS</span><h1>{customer.brand} AI搜索竞争力分析报告</h1><p>基于当前工作区采样记录和配置参考值，分析品牌认知与平台表现。</p></div><button className="filter-button" onClick={async () => { await navigator.clipboard?.writeText(window.location.href); setShared(true); setTimeout(() => setShared(false), 1800) }}>{shared ? '链接已复制' : '分享报告'}</button></div><div className="report-section-title"><b>一. 报告概述</b><span>最近采样：{data.dateRange.to || '暂无样本'}</span></div><div className="report-metrics"><div><span>蒸馏词数量</span><b>{data.words}</b><em>核心问题资产</em></div><div><span>竞争力分析次数</span><b>{data.samples}</b><em>跨平台样本</em></div><div><span>覆盖 AI 平台</span><b>{data.platforms}</b><em>已回传样本</em></div><div><span>引用信源平台数</span><b>{citedPlatforms}</b><em>按引用明细聚合</em></div></div><section className="competition-grid"><div className="chart-card"><div className="card-heading"><div><span>平台对比</span><h3>品牌可见度与配置参考值</h3></div></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><BarChart data={competitors}><CartesianGrid stroke="#edf0f8" vertical={false} /><XAxis dataKey="platform" axisLine={false} tickLine={false} /><YAxis domain={[0, 100]} axisLine={false} tickLine={false} /><Tooltip /><Bar dataKey="brand" name={customer.brand} fill="#315ff4" radius={[6, 6, 0, 0]} /><Bar dataKey="benchmark" name="配置参考值" fill="#c9d1ef" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div></div><aside className="brand-profile"><span>二. 品牌画像</span><h2>{customer.brand}</h2><dl><div><dt>公司名称</dt><dd>{customer.company}</dd></div><div><dt>核心服务</dt><dd>GEO 策略、内容资产与多平台运营</dd></div><div><dt>综合可见度</dt><dd>{data.visibilityRate}%</dd></div><div><dt>正向样本率</dt><dd>{data.positiveSentimentRate}%</dd></div></dl><div className="profile-score"><span>竞争力指数</span><b>{Math.round((data.visibilityRate + data.positiveSentimentRate) / 2)}</b></div></aside></section><section className="data-card competitor-table"><div className="data-toolbar"><h3>三. AI 搜索平台分析</h3><span>品牌样本表现与配置参考值对比</span></div><div className="table-scroll"><table><thead><tr><th>平台</th><th>品牌可见度</th><th>配置参考值</th><th>差值</th><th>改进建议</th></tr></thead><tbody>{competitors.map((row) => <tr key={row.platform}><td><b>{row.platform}</b></td><td>{row.brand}%</td><td>{row.benchmark}%</td><td><span className={`tag ${row.brand >= row.benchmark ? 'green' : 'orange'}`}>{row.brand - row.benchmark >= 0 ? '+' : ''}{row.brand - row.benchmark}%</span></td><td>{row.brand >= row.benchmark ? '保持高质量引用与品牌问答覆盖' : '补充权威信源与平台适配内容'}</td></tr>)}</tbody></table></div></section></main>
+}
+
+function PlaceholderPage({ title, subtitle, backPath = '/geo/dashboard', backLabel = '返回 GEO 首页' }) {
+  const [, navigate] = useLocation()
+  return <main className="content-page">
+    <div className="page-heading"><div><span className="section-kicker">AI PIONEER · WORKSPACE</span><h1>{title}</h1><p>{subtitle}</p></div><button className="filter-button" onClick={() => navigate(backPath)}>{backLabel}</button></div>
+    <section className="data-card"><div className="notice-bar"><ShieldCheck size={18} /><span>这是可操作的工作台入口，后续业务数据会在当前模块内继续沉淀。</span></div><div className="empty-state"><Sparkles /><b>{title}已打开</b><span>当前演示数据暂未配置更深层记录。</span><div className="form-actions"><button onClick={() => navigate(backPath)}>{backLabel}</button><button className="primary-button" onClick={() => navigate('/geo/dashboard')}>回到 GEO 首页</button></div></div></section>
+  </main>
+}
+
+function PublicSupportPage({ title, subtitle }) {
+  const [, navigate] = useLocation()
+  return <main className="login-page"><section className="login-panel-wrap"><div className="login-panel"><div className="login-headline"><p className="eyebrow">AI PIONEER · DEMO SUPPORT</p><h1>{title}</h1><p>{subtitle}</p></div><div className="form-actions"><button onClick={() => navigate('/login')}>返回登录</button><button className="gradient-button" onClick={() => navigate('/login')}>使用演示账号登录</button></div></div></section></main>
 }
 
 function ProtectedApp() {
@@ -570,7 +601,26 @@ function ProtectedApp() {
   const [location] = useLocation()
   if (loading) return <div className="page-loader"><Sparkles /> 正在加载工作台</div>
   if (!user) return <Redirect to="/login" />
-  if (location.startsWith('/crm')) return <CrmShell><CrmCustomers /></CrmShell>
+  if (location.startsWith('/crm')) {
+    const crmPages = {
+      '/crm/overview': <CrmOverview />,
+      '/crm/customers': <CrmCustomers />,
+      '/crm/orders': <CrmOrders />,
+      '/crm/finance': <CrmFinance />,
+      '/crm/cases': <CrmCases />,
+    }
+    return <CrmShell>{crmPages[location] || <CrmOverview />}</CrmShell>
+  }
+  if (location === '/settings') return <CrmShell><PlaceholderPage title="系统设置" subtitle="管理工作台显示、账号和运行偏好。" backPath="/crm/customers" backLabel="返回客户管理" /></CrmShell>
+  if (location === '/messages') return <CrmShell><PlaceholderPage title="消息中心" subtitle="查看系统通知、任务回执和数据更新提醒。" backPath="/crm/customers" backLabel="返回客户管理" /></CrmShell>
+
+  if (location.startsWith('/geo/evidence/')) {
+    const parts = location.slice('/geo/evidence/'.length).split('/').filter(Boolean)
+    const [customerId, snapshotId] = parts.length === 2
+      ? parts.map(Number)
+      : parts.length === 1 ? [currentCustomer().id, Number(parts[0])] : [NaN, NaN]
+    return <GeoShell><EvidenceSnapshotPage customerId={customerId} snapshotId={snapshotId} /></GeoShell>
+  }
 
   const geoPages = {
     '/geo/dashboard': <GeoDashboard />,
@@ -579,6 +629,8 @@ function ProtectedApp() {
     '/geo/publish': <ResourcePage type="publish" />,
     '/geo/automations': <ResourcePage type="automations" />,
     '/geo/report': <ReportPage />,
+    '/geo/video-seo': <PlaceholderPage title="短视频 SEO" subtitle="视频搜索与分发入口已打开，后续可在此配置脚本、素材和发布任务。" />,
+    '/geo/seo': <PlaceholderPage title="搜索引擎 SEO" subtitle="传统搜索增长入口已打开，后续可在此配置关键词、页面和排名任务。" />,
     '/geo/team': <ModulePage module="team" />,
     '/geo/realname': <SettingsPage module="realname" />,
     '/geo/agent': <SettingsPage module="agent" />,
@@ -610,7 +662,7 @@ function AppContent() {
   }, [])
   const logout = async () => { try { await api('/auth/logout', { method: 'POST' }) } catch {} authStore.clear(); setUser(null) }
   const auth = useMemo(() => ({ user, setUser, loading, logout }), [user, loading])
-  return <AuthContext.Provider value={auth}><Switch><Route path="/login"><LoginPage /></Route><Route><ProtectedApp /></Route></Switch></AuthContext.Provider>
+  return <AuthContext.Provider value={auth}><Switch><Route path="/login"><LoginPage /></Route><Route path="/register"><PublicSupportPage title="注册 AI先行者账号" subtitle="演示环境暂不创建真实账号，返回登录即可继续体验工作台。" /></Route><Route path="/support/forgot-password"><PublicSupportPage title="找回登录密码" subtitle="演示环境不发送真实短信或邮件，请使用演示账号重新登录。" /></Route><Route><ProtectedApp /></Route></Switch></AuthContext.Provider>
 }
 
 function App() {

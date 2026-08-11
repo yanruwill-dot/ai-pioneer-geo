@@ -3,5 +3,6 @@ dist/
 .netlify/
 data/*.sqlite*
 artifacts/
+.omo/
 .DS_Store
 *.log

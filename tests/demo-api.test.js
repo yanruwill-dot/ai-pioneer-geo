@@ -81,3 +81,28 @@ test('Pages demo rejects invalid dates and matches server rank normalization', a
   assert.equal(fractional.rank, 2)
   assert.equal(zero.rank, null)
 })
+
+test('Pages demo snapshot lookup is customer-scoped and keeps the stored device', async () => {
+  const created = await demoApi('/observations', {
+    method: 'POST',
+    body: JSON.stringify({ customerId: 2, platform: '测试平台', keyword: '客户二凭证', mentioned: 1, cited: 0, rank: 3, sentiment: '正向', device: '移动端', observedAt: '2026-08-08 11:00:00' }),
+  })
+  const detail = await demoApi(`/observations/${created.id}?customerId=2`)
+  assert.equal(detail.keyword, '客户二凭证')
+  assert.equal(detail.device, '移动端')
+  await assert.rejects(demoApi(`/observations/${created.id}?customerId=1`), /采样凭证不存在/)
+})
+
+test('Pages demo ships the same real Doubao evidence without leaking full text in the list', async () => {
+  const list = await demoApi('/observations?customerId=1')
+  const target = list.find((row) => row.external_id === 'doubao-38436432341358082')
+  assert.ok(target)
+  assert.equal(target.has_content, 1)
+  assert.equal(Object.hasOwn(target, 'answer_text'), false)
+  assert.equal(target.source_url, 'https://www.doubao.com/chat/38436432341358082')
+
+  const detail = await demoApi(`/observations/${target.id}?customerId=1`)
+  assert.match(detail.answer_text, /四、颜汝与智焰科技专项核实说明/)
+  assert.equal(detail.reference_count, 18)
+  assert.equal(detail.customer_brand, '智焰 AI')
+})

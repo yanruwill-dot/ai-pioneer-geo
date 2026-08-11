@@ -17,7 +17,26 @@ function safeEqual(a, b) {
 function rowList(db, table, customerId) {
   const allowed = new Set(['keywords', 'knowledge', 'publish_tasks', 'automations', 'observations'])
   if (!allowed.has(table)) throw new Error('Unsupported resource')
+  if (table === 'observations') {
+    return db.prepare(`SELECT
+      id, customer_id, external_id, platform, keyword, rank, mentioned, cited, sentiment, device,
+      observed_at, source_url, reference_count, captured_at, conversion_target,
+      CASE WHEN answer_text IS NOT NULL AND TRIM(answer_text) <> '' THEN 1 ELSE 0 END AS has_content
+      FROM observations WHERE customer_id = ? ORDER BY id DESC`).all(customerId)
+  }
   return db.prepare(`SELECT * FROM ${table} WHERE customer_id = ? ORDER BY id DESC`).all(customerId)
+}
+
+function normalizeSourceUrl(value) {
+  const raw = String(value ?? '').trim()
+  if (!raw) return { value: null }
+  try {
+    const parsed = new URL(raw)
+    if (!['http:', 'https:'].includes(parsed.protocol)) return { error: true }
+    return { value: parsed.toString() }
+  } catch {
+    return { error: true }
+  }
 }
 
 export function createApp({ database } = {}) {
@@ -78,8 +97,31 @@ export function createApp({ database } = {}) {
   app.get('/api/observations', requireAuth, (req, res) => {
     res.json(rowList(db, 'observations', Number(req.query.customerId || 1)))
   })
+  app.get('/api/observations/:id', requireAuth, (req, res) => {
+    const row = db.prepare(`SELECT observations.*, customers.brand AS customer_brand, customers.company AS customer_company
+      FROM observations JOIN customers ON customers.id = observations.customer_id
+      WHERE observations.id = ? AND observations.customer_id = ?`).get(Number(req.params.id), Number(req.query.customerId || 1))
+    if (!row) return res.status(404).json({ message: '采样凭证不存在' })
+    res.json(row)
+  })
   app.post('/api/observations', requireAuth, (req, res) => {
-    const { customerId = 1, platform, keyword, rank = null, mentioned = 0, cited = 0, sentiment = '正向', observedAt } = req.body || {}
+    const {
+      customerId = 1,
+      externalId = null,
+      platform,
+      keyword,
+      rank = null,
+      mentioned = 0,
+      cited = 0,
+      sentiment = '正向',
+      device = '未记录',
+      observedAt,
+      answerText = null,
+      sourceUrl = null,
+      referenceCount = 0,
+      capturedAt = null,
+      conversionTarget = null,
+    } = req.body || {}
     const normalizedPlatform = String(platform || '').trim()
     const normalizedKeyword = String(keyword || '').trim()
     const customer = db.prepare('SELECT id FROM customers WHERE id = ?').get(Number(customerId))
@@ -90,9 +132,40 @@ export function createApp({ database } = {}) {
     const normalizedRank = normalizeObservationRank(rank, isMentioned)
     const timestamp = normalizeObservedAt(observedAt, new Date())
     if (!timestamp) return res.status(400).json({ message: '采样时间格式不正确' })
+    const normalizedDevice = ['PC', '移动端'].includes(device) ? device : '未记录'
+    const normalizedSource = normalizeSourceUrl(sourceUrl)
+    if (normalizedSource.error) return res.status(400).json({ message: '原始会话链接必须是有效的 HTTP 或 HTTPS 地址' })
+    const normalizedAnswer = String(answerText ?? '').trim() || null
+    const normalizedCapturedAt = capturedAt
+      ? normalizeObservedAt(capturedAt)
+      : (normalizedAnswer ? timestamp : null)
+    if (capturedAt && !normalizedCapturedAt) return res.status(400).json({ message: '凭证保存时间格式不正确' })
+    const normalizedExternalId = String(externalId ?? '').trim() || null
+    if (normalizedExternalId && db.prepare('SELECT id FROM observations WHERE external_id = ?').get(normalizedExternalId)) {
+      return res.status(409).json({ message: '外部凭证编号已存在' })
+    }
+    const normalizedReferenceCount = Math.max(0, Math.trunc(Number(referenceCount) || 0))
+    const normalizedConversionTarget = String(conversionTarget ?? '').trim() || null
     const result = db.prepare(`INSERT INTO observations
-      (customer_id, platform, keyword, rank, mentioned, cited, sentiment, observed_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(Number(customerId), normalizedPlatform, normalizedKeyword, normalizedRank, isMentioned, isCited, String(sentiment || '正向'), timestamp)
+      (customer_id, external_id, platform, keyword, rank, mentioned, cited, sentiment, device, observed_at,
+        answer_text, source_url, reference_count, captured_at, conversion_target)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      Number(customerId),
+      normalizedExternalId,
+      normalizedPlatform,
+      normalizedKeyword,
+      normalizedRank,
+      isMentioned,
+      isCited,
+      String(sentiment || '正向'),
+      normalizedDevice,
+      timestamp,
+      normalizedAnswer,
+      normalizedSource.value,
+      normalizedReferenceCount,
+      normalizedCapturedAt,
+      normalizedConversionTarget,
+    )
     res.status(201).json(db.prepare('SELECT * FROM observations WHERE id = ?').get(result.lastInsertRowid))
   })
 
