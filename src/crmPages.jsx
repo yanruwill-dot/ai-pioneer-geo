@@ -5,14 +5,18 @@ import {
   Banknote,
   BookOpenText,
   BriefcaseBusiness,
+  CalendarDays,
   CheckCircle2,
   ChevronRight,
   CircleDollarSign,
+  Database,
   FileText,
-  Gauge,
   Layers3,
+  MapPin,
   Plus,
+  RotateCcw,
   Search,
+  SlidersHorizontal,
   Sparkles,
   Target,
   TrendingUp,
@@ -22,6 +26,7 @@ import {
 } from 'lucide-react'
 import { api, currentCustomer, setCurrentCustomer } from './api.js'
 import {
+  caseCockpitRoute,
   filterCases,
   filterOrders,
   filterTransactions,
@@ -171,43 +176,44 @@ export function CrmFinance() {
 
 export function CrmCases() {
   const [, navigate] = useLocation()
-  const [customers, setCustomers] = useState([])
-  const [customersLoaded, setCustomersLoaded] = useState(false)
-  const [industry, setIndustry] = useState('全部行业')
-  const [detail, setDetail] = useState(null)
-  const [busy, setBusy] = useState(false)
+  const [tab, setTab] = useState('案例查询')
+  const [expanded, setExpanded] = useState(false)
+  const [draft, setDraft] = useState({ region: '全部区域', query: '', industry: '全部行业', enabled: '全部状态' })
+  const [filters, setFilters] = useState(draft)
+  const [enabled, setEnabled] = useState(() => Object.fromEntries(seedCases.map((row) => [row.slug, row.enabled])))
   const industries = useMemo(() => ['全部行业', ...new Set(seedCases.map((row) => row.industry))], [])
-  const visible = filterCases(seedCases, industry)
-  useEffect(() => {
-    api('/crm/customers')
-      .then(setCustomers)
-      .finally(() => setCustomersLoaded(true))
-  }, [])
-
-  const linkedCustomer = (item) => customers.find((row) => row.brand === item.brand && row.company === item.company)
-
-  const enterCaseGeo = async (item) => {
-    const customer = linkedCustomer(item)
-    if (!customer) return
-    setBusy(true)
-    try {
-      const result = await api(`/crm/customers/${customer.id}/enter-geo`, { method: 'POST' })
-      setCurrentCustomer(result.customer)
-      navigate(result.redirect)
-    } finally {
-      setBusy(false)
-    }
+  const regions = useMemo(() => ['全部区域', ...new Set(seedCases.map((row) => row.region))], [])
+  const rows = seedCases.map((row) => ({ ...row, enabled: enabled[row.slug] }))
+  const filtered = filterCases(rows, filters)
+  const visible = tab === '高权重分站' ? [...filtered].sort((a, b) => b.includedPoints - a.includedPoints).slice(0, 3) : filtered
+  const searchCases = (event) => {
+    event.preventDefault()
+    setFilters(draft)
+  }
+  const resetCases = () => {
+    const empty = { region: '全部区域', query: '', industry: '全部行业', enabled: '全部状态' }
+    setDraft(empty)
+    setFilters(empty)
   }
 
   return <main className="content-page crm-business-page crm-cases-page">
-    <PageHeading eyebrow="GEO SUCCESS LIBRARY" title="GEO 案例" subtitle="按行业查看品牌实体、问题词、信源与 AI 可见度的完整建设路径。"><DemoLedgerNote /></PageHeading>
-    <section className="crm-case-intro"><div><span><Sparkles /></span><div><small>CASE INTELLIGENCE</small><h2>把每一次 GEO 运营沉淀为可复用的方法</h2><p>案例指标来自当前演示样本，用于展示从品牌认知到引用回查的工作流。</p></div></div><div><b>{seedCases.length}</b><span>个演示案例</span></div></section>
-    <div className="crm-case-tabs">{industries.map((item) => <button className={industry === item ? 'active' : ''} key={item} onClick={() => setIndustry(item)}>{item}</button>)}</div>
-    <section className="crm-case-grid">{visible.map((item) => {
-      const customer = linkedCustomer(item)
-      const unavailable = !customersLoaded || !customer
-      return <article key={item.id} className={`crm-case-card ${item.tone}`}><div className="crm-case-cover"><span>{item.industry}</span><b>{item.brand}</b><i>GEO</i></div><div className="crm-case-copy"><small>{item.id} · {item.cycle}</small><h3>{item.title}</h3><p>{item.summary}</p><dl><div><dt>AI 提及率</dt><dd>{item.mentionRate}%</dd></div><div><dt>被引用概率</dt><dd>{item.citationProbability}%</dd></div><div><dt>问题词</dt><dd>{item.keywords} 个</dd></div></dl><footer><button onClick={() => setDetail(item)}>查看案例详情</button><button aria-label={unavailable ? `${item.brand}暂无关联客户` : `进入 ${item.brand} GEO`} title={unavailable ? (customersLoaded ? '暂无精确匹配的关联客户' : '正在匹配关联客户') : `进入 ${item.brand} GEO`} onClick={() => enterCaseGeo(item)} disabled={busy || unavailable}>{unavailable && customersLoaded ? '未关联' : <ArrowUpRight />}</button></footer></div></article>
-    })}</section>
-    <CrmDrawer open={!!detail} onClose={() => setDetail(null)} title="GEO 案例详情">{detail && <div className="crm-case-detail"><span>{detail.industry}</span><h3>{detail.title}</h3><p>{detail.summary}</p><div className="crm-case-metrics"><div><small>AI 提及率</small><b>{detail.mentionRate}%</b></div><div><small>被引用概率</small><b>{detail.citationProbability}%</b></div><div><small>覆盖问题词</small><b>{detail.keywords}</b></div></div><h4>关键建设动作</h4><ul>{detail.highlights.map((item) => <li key={item}><CheckCircle2 /> {item}</li>)}</ul><button className="primary-button" onClick={() => enterCaseGeo(detail)} disabled={busy || !linkedCustomer(detail)}><Gauge size={17} /> {busy ? '正在进入…' : linkedCustomer(detail) ? '进入关联 GEO 数据看板' : customersLoaded ? '暂无精确匹配的关联客户' : '正在匹配关联客户…'}</button></div>}</CrmDrawer>
+    <PageHeading eyebrow="GEO SUCCESS LIBRARY" title="GEO 案例库" subtitle="按区域与核心产品词找到案例，再进入独立 GEO 数据驾驶舱。"><DemoLedgerNote /></PageHeading>
+    <section className="case-library-panel">
+      <div className="case-library-tabs"><button className={tab === '案例查询' ? 'active' : ''} onClick={() => setTab('案例查询')}>案例查询</button><button className={tab === '高权重分站' ? 'active' : ''} onClick={() => setTab('高权重分站')}>高权重分站</button><span>{tab === '案例查询' ? `当前 ${visible.length} 个案例` : '按结构化要点排序'}</span></div>
+      <form className="case-library-filters" onSubmit={searchCases}>
+        <label><span>所在区域</span><select value={draft.region} onChange={(event) => setDraft({ ...draft, region: event.target.value })}>{regions.map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label className="case-product-search"><span>核心产品词</span><input placeholder="请输入核心产品词" value={draft.query} onChange={(event) => setDraft({ ...draft, query: event.target.value })} /></label>
+        <div className="case-filter-actions"><button type="button" onClick={resetCases}><RotateCcw /> 重置</button><button className="search" type="submit"><Search /> 搜索</button><button type="button" className={expanded ? 'expanded' : ''} onClick={() => setExpanded((current) => !current)}><SlidersHorizontal /> {expanded ? '收起' : '展开'}</button></div>
+        {expanded && <div className="case-more-filters"><label><span>所属行业</span><select value={draft.industry} onChange={(event) => setDraft({ ...draft, industry: event.target.value })}>{industries.map((item) => <option key={item}>{item}</option>)}</select></label><label><span>案例状态</span><select value={draft.enabled} onChange={(event) => setDraft({ ...draft, enabled: event.target.value })}><option>全部状态</option><option>已启用</option><option>已停用</option></select></label></div>}
+      </form>
+
+      <section className="case-library-grid">{visible.map((item) => <article key={item.id} className={`case-library-card ${item.enabled ? '' : 'disabled'}`}>
+        <header><div><span>{item.id}</span><h2>{item.company}</h2><small>{item.brand} · {item.industry}</small></div><button onClick={() => navigate(caseCockpitRoute(item.slug))}>查看驾驶舱 <ArrowUpRight /></button></header>
+        <div className="case-card-products"><b>核心产品词</b><p>{item.coreProducts.join('、')}</p></div>
+        <dl><div><dt><MapPin /> 所在区域</dt><dd>{item.region}</dd></div><div><dt><CalendarDays /> 开通日期</dt><dd>{item.openedAt}</dd></div><div><dt><Database /> 纳入要点</dt><dd>{item.includedPoints}</dd></div></dl>
+        <footer><span>{item.enabled ? '已启用展示' : '已暂停展示'}</span><button role="switch" aria-checked={item.enabled} aria-label={`${item.brand}案例展示状态`} className={item.enabled ? 'on' : ''} onClick={() => setEnabled({ ...enabled, [item.slug]: !item.enabled })}><i /></button></footer>
+      </article>)}</section>
+      {!visible.length && <div className="empty-state"><Search /><b>没有匹配案例</b><span>调整区域、产品词、行业或状态后再试。</span></div>}
+    </section>
   </main>
 }

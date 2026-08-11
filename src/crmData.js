@@ -24,10 +24,38 @@ export const seedTransactions = [
 ]
 
 export const seedCases = [
-  { id: 'CASE-001', brand: '智焰 AI', company: '智焰科技有限公司', industry: 'AI 科技', title: '从“被搜索”到“被引用”的 GEO 内容资产建设', summary: '围绕企业 AI 内容营销与本地决策词，统一品牌身份、知识资产和可验证信源。', mentionRate: 69.2, citationProbability: 22.2, keywords: 5, cycle: '30 天演示周期', highlights: ['建立统一品牌实体页', '覆盖 5 个 AI 平台样本', '问题词与地域词同步监测'], tone: 'violet' },
-  { id: 'CASE-002', brand: '澄明课堂', company: '澄明教育科技', industry: '教育培训', title: '课程品牌的问答型内容与专家信源布局', summary: '将课程方法论拆成高频问题词和专家回答，形成从知识库到平台内容的连续证据。', mentionRate: 62.5, citationProbability: 18.8, keywords: 8, cycle: '45 天演示周期', highlights: ['课程知识结构化', '专家观点可信化', '平台问答持续回查'], tone: 'blue' },
-  { id: 'CASE-003', brand: '向海咨询', company: '向海品牌咨询', industry: '企业服务', title: '咨询服务的行业比较词与决策场景覆盖', summary: '针对企业选择咨询服务时的比较、预算和本地决策场景，构建可复用案例资产。', mentionRate: 55, citationProbability: 16.7, keywords: 6, cycle: '28 天演示周期', highlights: ['行业比较词建模', '客户案例结构化', '决策路径内容补齐'], tone: 'cyan' },
-  { id: 'CASE-004', brand: '云帆智造', company: '云帆智能制造', industry: '智能制造', title: '工业解决方案的技术问答与采购词覆盖', summary: '把复杂参数、交付能力和应用场景转成 AI 可理解、可核验的采购决策内容。', mentionRate: 71.4, citationProbability: 28.6, keywords: 7, cycle: '60 天演示周期', highlights: ['技术参数知识库', '采购问题词覆盖', '行业媒体信源分发'], tone: 'orange' },
+  {
+    id: 'CASE-001', slug: 'zhiyan-ai', customerId: 1, brand: '智焰 AI', company: '智焰科技有限公司', industry: 'AI 科技', region: '杭州市', openedAt: '2026-08-05', enabled: true,
+    title: '从“被搜索”到“被引用”的 GEO 内容资产建设', summary: '围绕企业 AI 内容营销与本地决策词，统一品牌身份、知识资产和可验证信源。', mentionRate: 69.2, citationProbability: 22.2, keywords: 5, samples: 26, includedPoints: 42, cycle: '30 天演示周期',
+    coreProducts: ['AI 内容营销', '企业 GEO', 'AI 搜索排名优化', '品牌大模型推荐', '杭州 AI 营销'], highlights: ['建立统一品牌实体页', '覆盖 5 个 AI 平台样本', '问题词与地域词同步监测'], tone: 'violet', evidenceRoute: '/geo/evidence/1/26',
+    platforms: [{ name: 'DeepSeek', samples: 5, mentions: 3 }, { name: '豆包', samples: 6, mentions: 5 }, { name: '元宝', samples: 5, mentions: 4 }, { name: '文心一言', samples: 5, mentions: 3 }, { name: '千问', samples: 5, mentions: 3 }],
+    trend: [{ date: '第1周', mentionRate: 46, citationProbability: 9 }, { date: '第2周', mentionRate: 54, citationProbability: 12 }, { date: '第3周', mentionRate: 62, citationProbability: 17 }, { date: '第4周', mentionRate: 69.2, citationProbability: 22.2 }],
+    questions: [{ keyword: '企业 GEO 怎么做', platform: '豆包', device: 'PC', target: '智焰 AI', saved: true }, { keyword: '品牌如何被大模型推荐', platform: 'DeepSeek', device: '移动端', target: '品牌名称', saved: false }, { keyword: '杭州 AI 营销公司', platform: '千问', device: 'PC', target: '品牌名称', saved: false }, { keyword: 'AI 搜索排名优化', platform: '元宝', device: '移动端', target: '未形成引用', saved: false }],
+  },
+  {
+    id: 'CASE-002', slug: 'chengming-class', customerId: 2, brand: '澄明课堂', company: '澄明教育科技', industry: '教育培训', region: '上海市', openedAt: '2026-08-03', enabled: true,
+    title: '课程品牌的问答型内容与专家信源布局', summary: '将课程方法论拆成高频问题词和专家回答，形成从知识库到平台内容的连续证据。', mentionRate: 62.5, citationProbability: 18.8, keywords: 8, samples: 16, includedPoints: 36, cycle: '45 天演示周期',
+    coreProducts: ['AI 学习课程', '企业培训', '内容运营课', 'AI 工具实战', '教育咨询'], highlights: ['课程知识结构化', '专家观点可信化', '平台问答持续回查'], tone: 'blue',
+    platforms: [{ name: 'DeepSeek', samples: 4, mentions: 3 }, { name: '豆包', samples: 4, mentions: 3 }, { name: '文心一言', samples: 4, mentions: 2 }, { name: '千问', samples: 4, mentions: 2 }],
+    trend: [{ date: '第1周', mentionRate: 34, citationProbability: 6 }, { date: '第2周', mentionRate: 45, citationProbability: 10 }, { date: '第3周', mentionRate: 56, citationProbability: 14 }, { date: '第4周', mentionRate: 62.5, citationProbability: 18.8 }],
+    questions: [{ keyword: '企业 AI 培训课程怎么选', platform: '豆包', device: 'PC', target: '澄明课堂', saved: false }, { keyword: 'AI 工具实战课程推荐', platform: 'DeepSeek', device: '移动端', target: '品牌名称', saved: false }, { keyword: '内容运营培训方法', platform: '千问', device: 'PC', target: '未形成引用', saved: false }],
+  },
+  {
+    id: 'CASE-003', slug: 'xianghai-consulting', customerId: 3, brand: '向海咨询', company: '向海品牌咨询', industry: '企业服务', region: '深圳市', openedAt: '2026-08-01', enabled: true,
+    title: '咨询服务的行业比较词与决策场景覆盖', summary: '针对企业选择咨询服务时的比较、预算和本地决策场景，构建可复用案例资产。', mentionRate: 55, citationProbability: 16.7, keywords: 6, samples: 18, includedPoints: 31, cycle: '28 天演示周期',
+    coreProducts: ['品牌咨询', '企业战略', '增长顾问', '品牌定位', '深圳咨询公司'], highlights: ['行业比较词建模', '客户案例结构化', '决策路径内容补齐'], tone: 'cyan',
+    platforms: [{ name: 'DeepSeek', samples: 5, mentions: 3 }, { name: '豆包', samples: 5, mentions: 3 }, { name: '元宝', samples: 4, mentions: 2 }, { name: 'Kimi', samples: 4, mentions: 2 }],
+    trend: [{ date: '第1周', mentionRate: 29, citationProbability: 5 }, { date: '第2周', mentionRate: 38, citationProbability: 8 }, { date: '第3周', mentionRate: 47, citationProbability: 12 }, { date: '第4周', mentionRate: 55, citationProbability: 16.7 }],
+    questions: [{ keyword: '深圳品牌咨询公司推荐', platform: 'DeepSeek', device: 'PC', target: '向海咨询', saved: false }, { keyword: '企业战略顾问怎么选', platform: '豆包', device: '移动端', target: '品牌名称', saved: false }, { keyword: '品牌定位服务费用', platform: 'Kimi', device: 'PC', target: '未形成引用', saved: false }],
+  },
+  {
+    id: 'CASE-004', slug: 'yunfan-manufacturing', customerId: null, brand: '云帆智造', company: '云帆智能制造', industry: '智能制造', region: '苏州市', openedAt: '2026-07-22', enabled: true,
+    title: '工业解决方案的技术问答与采购词覆盖', summary: '把复杂参数、交付能力和应用场景转成 AI 可理解、可核验的采购决策内容。', mentionRate: 71.4, citationProbability: 28.6, keywords: 7, samples: 21, includedPoints: 48, cycle: '60 天演示周期',
+    coreProducts: ['智能制造方案', '工业自动化', '柔性产线', '设备改造', '苏州智能工厂'], highlights: ['技术参数知识库', '采购问题词覆盖', '行业媒体信源分发'], tone: 'orange',
+    platforms: [{ name: 'DeepSeek', samples: 6, mentions: 5 }, { name: '豆包', samples: 5, mentions: 4 }, { name: '元宝', samples: 5, mentions: 3 }, { name: '文心一言', samples: 5, mentions: 3 }],
+    trend: [{ date: '第1周', mentionRate: 41, citationProbability: 11 }, { date: '第2周', mentionRate: 52, citationProbability: 17 }, { date: '第3周', mentionRate: 63, citationProbability: 23 }, { date: '第4周', mentionRate: 71.4, citationProbability: 28.6 }],
+    questions: [{ keyword: '智能制造解决方案厂家', platform: 'DeepSeek', device: 'PC', target: '云帆智造', saved: false }, { keyword: '苏州工业自动化公司', platform: '豆包', device: '移动端', target: '品牌名称', saved: false }, { keyword: '柔性产线改造怎么做', platform: '元宝', device: 'PC', target: '未形成引用', saved: false }],
+  },
 ]
 
 export function crmTitleFor(pathname) {
@@ -59,6 +87,25 @@ export function summarizeFinance(rows) {
   }, { received: 0, paid: 0, pending: 0 })
 }
 
-export function filterCases(rows, industry = '全部行业') {
-  return rows.filter((row) => industry === '全部行业' || row.industry === industry)
+export function filterCases(rows, filters = '全部行业') {
+  const options = typeof filters === 'string' ? { industry: filters } : filters
+  const industry = options.industry || '全部行业'
+  const region = options.region || '全部区域'
+  const enabled = options.enabled || '全部状态'
+  const query = String(options.query || '').trim().toLowerCase()
+  return rows.filter((row) => {
+    const haystack = `${row.brand}${row.company}${row.title}${row.coreProducts?.join('') || ''}`.toLowerCase()
+    return (industry === '全部行业' || row.industry === industry)
+      && (region === '全部区域' || row.region === region)
+      && (enabled === '全部状态' || (enabled === '已启用') === Boolean(row.enabled))
+      && haystack.includes(query)
+  })
+}
+
+export function caseCockpitRoute(slug) {
+  return seedCases.some((item) => item.slug === slug) ? `/geo-dashboard/index-1/${slug}` : '/crm/cases'
+}
+
+export function findCaseBySlug(slug) {
+  return seedCases.find((item) => item.slug === slug) || null
 }

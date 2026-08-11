@@ -90,6 +90,8 @@ test('Pages demo snapshot lookup is customer-scoped and keeps the stored device'
   const detail = await demoApi(`/observations/${created.id}?customerId=2`)
   assert.equal(detail.keyword, '客户二凭证')
   assert.equal(detail.device, '移动端')
+  assert.equal(detail.has_content, 0)
+  assert.equal(detail.answer_text, '')
   await assert.rejects(demoApi(`/observations/${created.id}?customerId=1`), /采样凭证不存在/)
 })
 

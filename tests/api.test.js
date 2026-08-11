@@ -179,6 +179,25 @@ test('真实豆包快照列表保持轻量，详情保存正文与原始会话�
   assert.equal(detail.body.captured_at, '2026-08-11 14:45:31')
 })
 
+test('未保存回答正文的采样仍可按客户打开结构化凭证', async () => {
+  const list = await request(app)
+    .get('/api/observations?customerId=1')
+    .set('Authorization', `Bearer ${token}`)
+  const target = list.body.find((row) => row.has_content === 0)
+  assert.ok(target)
+
+  const detail = await request(app)
+    .get(`/api/observations/${target.id}?customerId=1`)
+    .set('Authorization', `Bearer ${token}`)
+  assert.equal(detail.status, 200)
+  assert.equal(detail.body.id, target.id)
+  assert.equal(detail.body.customer_id, 1)
+  assert.equal(detail.body.answer_text, null)
+  assert.ok(detail.body.platform)
+  assert.ok(detail.body.keyword)
+  assert.ok(detail.body.observed_at)
+})
+
 test('快照写入拒绝危险来源协议并接受 HTTPS 原始会话', async () => {
   const rejected = await request(app)
     .post('/api/observations')

@@ -2,7 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   CRM_ROUTE_META,
+  caseCockpitRoute,
   crmTitleFor,
+  findCaseBySlug,
   filterCases,
   filterOrders,
   filterTransactions,
@@ -36,6 +38,22 @@ test('finance summaries and filters use explicit ledger status', () => {
 test('case filter returns only the selected industry', () => {
   assert.deepEqual(filterCases(seedCases, '教育培训').map((row) => row.brand), ['澄明课堂'])
   assert.equal(filterCases(seedCases).length, seedCases.length)
+})
+
+test('case library combines region, product, industry and status filters', () => {
+  assert.deepEqual(filterCases(seedCases, { region: '杭州市', query: '企业 GEO' }).map((row) => row.brand), ['智焰 AI'])
+  assert.deepEqual(filterCases(seedCases, { industry: '智能制造', enabled: '已启用' }).map((row) => row.brand), ['云帆智造'])
+  assert.equal(filterCases(seedCases, { query: '不存在的产品词' }).length, 0)
+  assert.equal(filterCases([{ ...seedCases[0], enabled: false }], { enabled: '已停用' }).length, 1)
+})
+
+test('every GEO case has a unique, directly addressable cockpit route', () => {
+  const routes = seedCases.map((row) => caseCockpitRoute(row.slug))
+  assert.equal(new Set(routes).size, seedCases.length)
+  assert.ok(routes.every((route) => route.startsWith('/geo-dashboard/index-1/')))
+  assert.equal(findCaseBySlug('zhiyan-ai')?.brand, '智焰 AI')
+  assert.equal(findCaseBySlug('missing-case'), null)
+  assert.equal(caseCockpitRoute('missing-case'), '/crm/cases')
 })
 
 test('snapshot routes and consistency codes are stable and field-sensitive', () => {
