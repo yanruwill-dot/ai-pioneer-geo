@@ -1221,3 +1221,22 @@ td b { color: #333d53; font-weight: 600; }
   .public-hero { min-height: 520px; padding: 0 22px; }.public-hero h1 { font-size: 43px; }.public-intro,.about-layout,.contact-public-layout { padding: 55px 22px; grid-template-columns: 1fr; gap: 30px; }.public-intro > p { font-size: 13px; }.public-services { padding: 0 22px 55px; }.public-page > header { padding: 55px 22px 38px; }.public-page > header h1 { font-size: 38px; }.about-layout,.contact-public-layout,.product-public-grid,.gallery-public-grid,.news-public-list { margin: 28px 22px 0; }.news-public-list article { grid-template-columns: 1fr 20px; }.news-public-list time { grid-column: 1 / -1; }.generated-site-footer { grid-template-columns: 1fr; gap: 12px; }.generated-site-footer em { justify-self: start; }
   .site-admin-heading { align-items: stretch; flex-direction: column; gap: 16px; }.site-admin-heading > div:last-child { display: grid; grid-template-columns: 1fr 1fr; }.site-admin-shell { grid-template-columns: 1fr; }.site-admin-shell > aside { padding: 10px; display: flex; gap: 8px; overflow-x: auto; border-right: 0; border-bottom: 1px solid #e5e9f1; }.site-admin-shell > aside section { margin: 0; display: flex; gap: 5px; }.site-admin-shell > aside section > b { display: none; }.site-admin-shell > aside button { width: max-content; padding: 0 10px; border-radius: 7px; }.site-admin-content { padding: 20px 15px; }
 }
+
+@media (max-width: 560px) {
+  .login-panel-wrap { width: 100%; padding: 12px; }
+  .login-panel { width: 100%; min-height: 0; padding: 34px 22px; }
+  .login-tabs { margin-bottom: 48px; gap: 0; justify-content: space-between; }
+  .login-tabs button { font-size: 22px; }
+  .agree span, .public-demo-note span { min-width: 0; overflow-wrap: anywhere; }
+  .generated-site-header { padding: 14px; grid-template-columns: minmax(0,1fr); gap: 8px; }
+  .generated-site-header .site-logo { min-width: 0; }
+  .generated-site-header > a { display: none; }
+  .generated-site-header nav { width: 100%; padding-top: 8px; gap: 20px; scrollbar-width: thin; }
+  .public-hero { min-height: 500px; padding: 0 18px; }
+  .public-hero > div { width: 100%; min-width: 0; }
+  .public-hero h1 { font-size: 36px; line-height: 1.18; letter-spacing: 0; overflow-wrap: anywhere; }
+  .public-hero p { font-size: 13px; }
+  .public-hero > div > div { align-items: stretch; flex-direction: column; }
+  .public-hero button { justify-content: center; }
+  .public-intro h2 { font-size: 32px; }
+}
