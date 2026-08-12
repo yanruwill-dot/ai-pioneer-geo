@@ -14,6 +14,26 @@ const { findCaseEvidenceRoute, seedCases } = await import('../src/crmData.js')
 
 beforeEach(() => storage.clear())
 
+test('Pages demo opens the generated website on first visit and upgrades old browser data', async () => {
+  const fresh = await demoApi('/public/site/1')
+  assert.equal(fresh.website.status, 'generated')
+  assert.equal(fresh.website.brand, '智焰 AI')
+  assert.ok(fresh.website.pages.includes('contact'))
+
+  await demoApi('/knowledge', {
+    method: 'POST',
+    body: JSON.stringify({ customerId: 1, title: '迁移触发记录', type: 'FAQ', content: '用于验证旧浏览器数据升级。' }),
+  })
+  const key = 'ai_pioneer_pages_demo_db_v2'
+  const oldState = JSON.parse(storage.get(key))
+  delete oldState.settings[1].agent.website
+  storage.set(key, JSON.stringify(oldState))
+
+  const migrated = await demoApi('/public/site/1')
+  assert.equal(migrated.website.status, 'generated')
+  assert.equal(JSON.parse(storage.get(key)).settings[1].agent.website.status, 'generated')
+})
+
 test('Pages demo keeps customer resources, metrics, modules and settings isolated', async () => {
   const customer2Keyword = '客户二隔离关键词'
   await demoApi('/keywords', {

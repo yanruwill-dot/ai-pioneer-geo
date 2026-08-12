@@ -1,5 +1,6 @@
 import { buildGeoInsights, normalizeObservationRank, normalizeObservedAt } from '../shared/geoInsights.js'
 import { RECORDED_EVIDENCE } from '../shared/recordedEvidence.js'
+import { buildWebsiteDraft } from './websiteBuilder.js'
 
 const STORE_KEY = 'ai_pioneer_pages_demo_db_v2'
 const SESSION_TOKEN = 'ai-pioneer-pages-session'
@@ -23,8 +24,13 @@ const moduleRows = [
   ['article-batch', '企业 GEO 入门系列', '批量创作', '已完成', '8 / 8', '已同步到文章管理'],
   ['article-manage', 'GEO 入门指南：让品牌进入 AI 答案', '品牌解读', '已发布', '发布 3 次', '围绕 GEO 价值、步骤和评估方式展开'],
   ['article-manage', '企业做 GEO 前必须准备的 5 类资料', '实操教程', '待审批', '0 次', '包含主体资料、产品知识和案例证据'],
+  ['automation-logs', '企业 GEO 入门系列自动发布', '发布任务', '执行成功', '6 个步骤完成', '内容校验、队列提交、平台回执与公开页回查均已记录'],
   ['stations', '杭州 GEO 服务中心', '城市分站', '已上线', '权重 82', '覆盖杭州企业 GEO 等地域词'],
   ['stations', '上海 AI 搜索增长中心', '城市分站', '建设中', '完成 68%', '正在补充本地案例和服务页面'],
+  ['station-menu', '网站首页', '一级栏目', '已启用', '排序 1', '分站主入口，展示企业简介、服务与城市覆盖'],
+  ['station-profile', '智焰科技分站资料', '公司资料', '已启用', '完整度 92%', '已同步企业名称、品牌介绍、联系电话与地址'],
+  ['station-cities', '杭州站', '重点城市', '已上线', '访问正常', '已生成首页 TDK 并完成页面打开检查'],
+  ['station-products', '企业 GEO 增长服务', '解决方案', '已推荐', '覆盖 1 个分站', '展示 GEO 策略、知识资产、信源发布与数据回查能力'],
   ['records', 'GEO 入门指南：让品牌进入 AI 答案', '新闻媒体', '发布成功', '3 个站点', '公开页已回查'],
   ['records', '企业做 GEO 前必须准备的 5 类资料', 'B2B 网站', '发布中', '2 / 5', '已提交，等待平台回执'],
   ['video-create', '品牌进入 AI 答案的五步法', '横版视频', '渲染中', '72%', '脚本、配音和字幕已完成'],
@@ -74,6 +80,25 @@ function normalizeSourceUrl(value) {
   }
 }
 
+function generatedWebsite(state, customerId = 1) {
+  const customer = state.customers?.find((row) => Number(row.id) === customerId) || {}
+  const realname = state.settings?.[customerId]?.realname || {}
+  const agent = state.settings?.[customerId]?.agent || {}
+  const items = scoped(state.moduleItems || [], customerId)
+  return {
+    ...buildWebsiteDraft({
+      customer,
+      realname,
+      agent,
+      knowledge: scoped(state.knowledge || [], customerId),
+      images: items.filter((row) => row.module === 'images'),
+      articles: items.filter((row) => row.module === 'article-manage'),
+    }),
+    status: 'generated',
+    generatedAt: '2026-08-12T09:00:00.000Z',
+  }
+}
+
 function initialState() {
   const keywords = [
     ['AI 内容营销', '核心业务', 1280, '已完成'],
@@ -105,24 +130,28 @@ function initialState() {
     observations.push({ id: observationId++, customer_id: 1, platform, keyword: keyword.word, rank: mentioned ? ((platformIndex + wordIndex) % 5) + 1 : null, mentioned, cited: mentioned && (platformIndex + wordIndex) % 5 === 0 ? 1 : 0, sentiment: (platformIndex + wordIndex) % 7 === 0 ? '中性' : '正向', device: (platformIndex * keywords.length + wordIndex) % 2 === 0 ? 'PC' : '移动端', observed_at: isoDate(wordIndex + 1) })
   }))
   for (const evidence of RECORDED_EVIDENCE) observations.push(recordedObservation(evidence, observationId++))
+  const customers = [
+    { id: 1, company: '智焰科技有限公司', brand: '智焰 AI', account: 'zhiyan', city: '杭州', status: '服务中', product: 'GEO', created_at: isoDate() },
+    { id: 2, company: '澄明教育科技', brand: '澄明课堂', account: 'chengming', city: '上海', status: '服务中', product: 'GEO', created_at: isoDate() },
+    { id: 3, company: '向海品牌咨询', brand: '向海咨询', account: 'xianghai', city: '深圳', status: '待配置', product: 'GEO', created_at: isoDate() },
+  ]
+  const moduleItems = moduleRows.map(([module, title, item_type, status, metric, detail], index) => ({ id: index + 1, customer_id: 1, module, title, item_type, status, metric, detail, created_at: isoDate(), updated_at: isoDate() }))
+  const settings = {
+    1: {
+      realname: { authType: '企业认证', company: '智焰科技有限公司', unifiedCode: '91330100MA******8X', legalRepresentative: '企业管理员', status: '已认证', address: '浙江省杭州市' },
+      agent: { tab: '智能体官网', name: '智焰 AI 品牌顾问', welcome: '你好，我是品牌 AI 顾问，可以为你介绍 GEO 服务、实施流程和案例。', tone: '专业、清晰、可信', websiteDomain: 'ai.zhiyan.example', servicePhone: '400-800-2026', enabled: true },
+    },
+  }
+  settings[1].agent.website = generatedWebsite({ customers, knowledge, moduleItems, settings }, 1)
   return {
-    customers: [
-      { id: 1, company: '智焰科技有限公司', brand: '智焰 AI', account: 'zhiyan', city: '杭州', status: '服务中', product: 'GEO', created_at: isoDate() },
-      { id: 2, company: '澄明教育科技', brand: '澄明课堂', account: 'chengming', city: '上海', status: '服务中', product: 'GEO', created_at: isoDate() },
-      { id: 3, company: '向海品牌咨询', brand: '向海咨询', account: 'xianghai', city: '深圳', status: '待配置', product: 'GEO', created_at: isoDate() },
-    ],
+    customers,
     keywords,
     knowledge,
     publishTasks,
     automations,
     observations,
-    moduleItems: moduleRows.map(([module, title, item_type, status, metric, detail], index) => ({ id: index + 1, customer_id: 1, module, title, item_type, status, metric, detail, created_at: isoDate(), updated_at: isoDate() })),
-    settings: {
-      1: {
-        realname: { authType: '企业认证', company: '智焰科技有限公司', unifiedCode: '91330100MA******8X', legalRepresentative: '企业管理员', status: '已认证', address: '浙江省杭州市' },
-        agent: { tab: '智能体官网', name: '智焰 AI 品牌顾问', welcome: '你好，我是品牌 AI 顾问，可以为你介绍 GEO 服务、实施流程和案例。', tone: '专业、清晰、可信', websiteDomain: 'ai.zhiyan.example', servicePhone: '400-800-2026', enabled: true },
-      },
-    },
+    moduleItems,
+    settings,
   }
 }
 
@@ -131,6 +160,13 @@ function readState() {
     const state = JSON.parse(localStorage.getItem(STORE_KEY)) || initialState()
     state.observations = (state.observations || []).map((row) => ({ ...row, cited: row.mentioned ? Number(row.cited || 0) : 0, device: row.device || '未记录', has_content: Number(Boolean(row.answer_text)) }))
     let changed = false
+    if (!state.settings?.[1]?.agent?.website) {
+      state.settings ||= {}
+      state.settings[1] ||= {}
+      state.settings[1].agent ||= {}
+      state.settings[1].agent.website = generatedWebsite(state, 1)
+      changed = true
+    }
     for (const evidence of RECORDED_EVIDENCE) {
       const recordedIndex = state.observations.findIndex((row) => row.external_id === evidence.externalId || (evidence.sourceUrl && row.source_url === evidence.sourceUrl))
       if (recordedIndex === -1) {
@@ -218,6 +254,14 @@ export async function demoApi(path, options = {}) {
 
   const resources = { '/keywords': 'keywords', '/knowledge': 'knowledge', '/publish-tasks': 'publishTasks', '/automations': 'automations' }
   const resourceKey = resources[pathname]
+  const publicSiteMatch = pathname.match(/^\/public\/site\/(\d+)$/)
+  if (publicSiteMatch && method === 'GET') {
+    const publicCustomerId = Number(publicSiteMatch[1])
+    const website = state.settings[publicCustomerId]?.agent?.website
+    if (!website || website.status !== 'generated') throw new Error('智能体官网尚未生成')
+    const articles = scoped(state.moduleItems, publicCustomerId).filter((row) => row.module === 'article-manage').reverse()
+    return { website, articles }
+  }
   if (resourceKey && method === 'GET') return [...scoped(state[resourceKey], customerId)].reverse()
   if (pathname === '/keywords' && method === 'POST') {
     const row = { id: nextId(state.keywords), customer_id: customerId, word: body.word, category: body.category, search_volume: Number(body.searchVolume) || 0, status: '训练中', created_at: isoDate() }

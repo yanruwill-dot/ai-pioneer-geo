@@ -273,3 +273,18 @@ test('AI agent settings persist as customer-scoped JSON', async () => {
     .set('Authorization', `Bearer ${token}`)
   assert.equal(read.body.data.tone, '专业可信')
 })
+
+test('generated website is publicly readable without exposing other agent settings', async () => {
+  await request(app)
+    .put('/api/module-settings/agent')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ customerId: 1, data: { name: '内部顾问名称', card: { phone: 'private' }, website: { status: 'generated', brand: '智焰 AI', pages: ['home'] } } })
+
+  const response = await request(app).get('/api/public/site/1')
+  assert.equal(response.status, 200)
+  assert.equal(response.body.website.brand, '智焰 AI')
+  assert.deepEqual(response.body.website.pages, ['home'])
+  assert.equal(response.body.name, undefined)
+  assert.equal(response.body.card, undefined)
+  assert.ok(Array.isArray(response.body.articles))
+})

@@ -68,6 +68,15 @@ export function createApp({ database } = {}) {
   }
 
   app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'ai-pioneer-geo-console' }))
+  app.get('/api/public/site/:customerId', (req, res) => {
+    const customerId = Number(req.params.customerId)
+    const row = db.prepare(`SELECT data FROM module_settings WHERE customer_id = ? AND module = 'agent'`).get(customerId)
+    const website = row ? JSON.parse(row.data).website : null
+    if (!website || website.status !== 'generated') return res.status(404).json({ message: '智能体官网尚未生成' })
+    const articles = db.prepare(`SELECT title, detail, created_at, updated_at FROM module_items
+      WHERE customer_id = ? AND module = 'article-manage' ORDER BY id DESC LIMIT 20`).all(customerId)
+    res.json({ website, articles })
+  })
   app.get('/api/auth/me', requireAuth, (req, res) => res.json(req.user))
   app.post('/api/auth/logout', requireAuth, (req, res) => {
     db.prepare('DELETE FROM sessions WHERE token = ?').run(req.token)

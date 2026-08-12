@@ -1,10 +1,11 @@
 # API
 
-除健康检查和登录外，接口都需要 `Authorization: Bearer <token>`。
+除健康检查、登录和已生成官网的公开读取外，接口都需要 `Authorization: Bearer <token>`。
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
 | GET | `/api/health` | 服务健康检查 |
+| GET | `/api/public/site/:customerId` | 读取已生成官网和公开文章摘要；不返回名片、客服等内部配置 |
 | POST | `/api/auth/login` | 账号登录 |
 | GET | `/api/auth/me` | 当前用户 |
 | POST | `/api/auth/logout` | 注销会话 |
@@ -22,6 +23,8 @@
 | GET/POST | `/api/module-items` | 深层业务模块列表与新增 |
 | PATCH | `/api/module-items/:id` | 更新业务记录与状态 |
 | GET/PUT | `/api/module-settings/:module` | 实名认证、AI 智能体配置读写 |
+
+`GET /api/public/site/:customerId` 仅在 `module_settings.agent.website.status` 为 `generated` 时返回 `200`；未生成的网站返回 `404`。
 
 `POST /api/observations` 的 `observedAt` 支持 `YYYY-MM-DD` 以及带时间的 ISO 格式，非法日期返回 `400`；排名只保留正整数，小数会四舍五入，未提及样本的排名和引用自动归空。
 

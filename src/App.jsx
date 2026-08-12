@@ -57,6 +57,7 @@ import { CaseCockpitPage } from './CaseCockpitPage.jsx'
 import { CrmCases, CrmFinance, CrmOrders, CrmOverview } from './crmPages.jsx'
 import { EvidenceSnapshotPage } from './EvidenceSnapshotPage.jsx'
 import { EVIDENCE_RETURN_STORAGE_KEY, safeHttpUrl, snapshotRoute } from './evidence.js'
+import { AgentStudioPage, GeneratedSitePage, SiteAdminPage } from './WebsiteStudio.jsx'
 
 const AuthContext = createContext(null)
 
@@ -238,7 +239,7 @@ const geoNav = [
   { icon: Gauge, label: '首页', path: '/geo/dashboard' },
   { icon: BadgeCheck, label: '立身份', children: [{ label: '团队管理', path: '/geo/team' }, { label: '实名认证', path: '/geo/realname' }, { label: 'AI 智能体', path: '/geo/agent' }] },
   { icon: Database, label: '建资产', children: [{ label: '关键词营销定位', path: '/geo/keywords' }, { label: '企业知识库', path: '/geo/knowledge' }, { label: '转化目标', path: '/geo/targets' }, { label: '图片素材中心', path: '/geo/images' }, { label: '视频脚本创作', path: '/geo/video-script' }, { label: '视频模板与素材', path: '/geo/templates' }] },
-  { icon: Layers3, label: '布信源', children: [{ label: '账号与授权', path: '/geo/account-auth' }, { label: '提示词中心', path: '/geo/prompts' }, { label: '文章批量创作', path: '/geo/article-batch' }, { label: '文章管理', path: '/geo/article-manage' }, { label: '文章自动发布', path: '/geo/automations' }, { label: '高权重城市分站', path: '/geo/stations' }, { label: '视频创作与发布', path: '/geo/video-create' }, { label: '视频管理', path: '/geo/video-manage' }] },
+  { icon: Layers3, label: '布信源', children: [{ label: '账号与授权', path: '/geo/account-auth' }, { label: '提示词中心', path: '/geo/prompts' }, { label: '文章批量创作', path: '/geo/article-batch' }, { label: '文章管理', path: '/geo/article-manage' }, { label: '自动化任务', path: '/geo/automations' }, { label: '执行日志', path: '/geo/automation-logs' }, { label: '分站管理入口', path: '/geo/stations' }, { label: '分站菜单设置', path: '/geo/station-menu' }, { label: '分站资料设置', path: '/geo/station-profile' }, { label: '城市分站设置', path: '/geo/station-cities' }, { label: '分站产品与服务', path: '/geo/station-products' }, { label: '视频创作与发布', path: '/geo/video-create' }, { label: '视频管理', path: '/geo/video-manage' }] },
   { icon: Send, label: '发全域', children: [{ label: '文章发布队列', path: '/geo/publish' }, { label: '文章发布记录', path: '/geo/records' }, { label: '视频发布记录', path: '/geo/video-records' }] },
   { icon: BarChart3, label: '盯数据', children: [{ label: 'AI搜索营销报表', path: '/geo/report' }, { label: 'AI搜索竞争力分析报告', path: '/geo/competition' }] },
 ]
@@ -249,7 +250,7 @@ function GeoShell({ children }) {
   const [mobile, setMobile] = useState(false)
   const [opened, setOpened] = useState(() => new Set())
   useEffect(() => {
-    const currentGroup = geoNav.find((item) => item.children?.some((child) => child.path === location))
+    const currentGroup = geoNav.find((item) => item.children?.some((child) => child.path === location || (child.path === '/geo/agent' && (location.startsWith('/geo/agent/') || location.startsWith('/geo/site-admin/')))))
     setOpened(currentGroup ? new Set([currentGroup.label]) : new Set())
   }, [location])
   const toggle = (label) => setOpened((prev) => {
@@ -260,7 +261,7 @@ function GeoShell({ children }) {
       <aside className={`sidebar geo-sidebar ${mobile ? 'open' : ''}`}>
         <div className="sidebar-brand"><Brand compact={collapsed} /><button onClick={() => setCollapsed(!collapsed)}><PanelLeftClose size={18} /></button></div>
         <nav>{geoNav.map((item) => {
-          const active = item.path ? location === item.path : item.children?.some((child) => location === child.path)
+          const active = item.path ? location === item.path : item.children?.some((child) => location === child.path || (child.path === '/geo/agent' && (location.startsWith('/geo/agent/') || location.startsWith('/geo/site-admin/'))))
           const isOpen = opened.has(item.label)
           const Icon = item.icon
           return <div className="nav-group" key={item.label}><button className={active ? 'active' : ''} onClick={() => item.path ? navigate(item.path) : toggle(item.label)}><Icon size={19} /><span>{item.label}</span>{item.children && (isOpen ? <ChevronDown className="chev" size={15} /> : <ChevronRight className="chev" size={15} />)}</button>{item.children && isOpen && !collapsed && <div className="subnav">{item.children.map((child) => <button className={location === child.path ? 'active' : ''} onClick={() => { navigate(child.path); setMobile(false) }} key={child.path}>{child.label}</button>)}</div>}</div>
@@ -503,6 +504,11 @@ const moduleConfigs = {
   'article-batch': { title: '文章批量创作', subtitle: '基于关键词、知识库和提示词批量生成文章任务。', button: '新建任务', noun: '任务', types: ['批量创作', '单篇扩写', '地域内容'], statuses: ['生成中', '已完成', '待开始'], metric: '已生成' },
   'article-manage': { title: '文章管理', subtitle: '统一管理待确认、审批、发布和失败内容。', button: '新增文章', noun: '文章', types: ['品牌解读', '实操教程', '行业观察'], statuses: ['全部', '待审批', '已确认', '待发布', '已发布', '发布失败'], metric: '发布次数' },
   stations: { title: '高权重城市分站', subtitle: '建设地域信源与城市级 AI 搜索入口。', button: '新建城市分站', noun: '分站', types: ['城市分站', '行业分站'], statuses: ['已上线', '建设中', '已暂停'], metric: '建设进度' },
+  'automation-logs': { title: '执行日志', subtitle: '回查文章自动发布任务的时间、步骤、回执与失败原因。', button: null, noun: '日志', types: ['创作任务', '发布任务', '回查任务'], statuses: ['全部', '执行成功', '执行中', '执行失败'], metric: '执行结果' },
+  'station-menu': { title: '分站菜单设置', subtitle: '维护高权重城市分站的栏目名称、排序、打开方式与跳转入口。', button: '新增子栏目', noun: '栏目', types: ['一级栏目', '子栏目', '跳转栏目'], statuses: ['已启用', '已停用'], metric: '排序与层级' },
+  'station-profile': { title: '分站资料设置', subtitle: '统一管理分站企业介绍、联系信息、品牌图片与备案资料。', button: '新增资料', noun: '资料', types: ['公司资料', '联系信息', '品牌图片'], statuses: ['已启用', '待完善'], metric: '资料完整度' },
+  'station-cities': { title: '城市分站设置', subtitle: '导入城市、配置分站 TDK，并逐站确认页面可正常访问。', button: '导入城市', noun: '城市', types: ['重点城市', '服务城市', '测试城市'], statuses: ['已上线', '待生成', '已暂停'], metric: '访问状态' },
+  'station-products': { title: '分站产品与服务', subtitle: '维护分站展示的产品、服务内容、推荐状态与排序。', button: '新增产品服务', noun: '产品服务', types: ['产品', '解决方案', '服务项目'], statuses: ['已启用', '已推荐', '已停用'], metric: '分站覆盖' },
   records: { title: '文章发布记录', subtitle: '查看媒体回执、公开页核验和失败原因。', button: null, noun: '记录', types: ['新闻媒体', 'B2B 网站', '自有站点'], statuses: ['全部', '发布成功', '发布中', '发布失败'], metric: '发布结果' },
   'video-create': { title: '视频创作与发布', subtitle: '编排脚本、画面、字幕与多平台发布任务。', button: '新建视频任务', noun: '视频任务', types: ['横版视频', '竖版视频', '数字人口播'], statuses: ['渲染中', '待审核', '已完成'], metric: '创作进度' },
   'video-manage': { title: '视频管理', subtitle: '统一管理成片、审核状态和发布准备情况。', button: '导入视频', noun: '视频', types: ['知识口播', '案例解读', '教程视频'], statuses: ['已完成', '待审核', '处理中'], metric: '视频时长' },
@@ -608,6 +614,10 @@ function ProtectedApp() {
   const { user, loading } = useContext(AuthContext)
   const [location] = useLocation()
   if (loading) return <div className="page-loader"><Sparkles /> 正在加载工作台</div>
+  if (location.startsWith('/site/')) {
+    const [customerId, page = 'home'] = location.slice('/site/'.length).split('/').filter(Boolean)
+    return <GeneratedSitePage customerId={Number(customerId) || currentCustomer().id} page={page} />
+  }
   if (!user) return <Redirect to="/login" />
   if (location.startsWith('/geo-dashboard/index-1/')) {
     const caseSlug = location.slice('/geo-dashboard/index-1/'.length).split('/')[0]
@@ -634,6 +644,11 @@ function ProtectedApp() {
     return <GeoShell><EvidenceSnapshotPage customerId={customerId} snapshotId={snapshotId} /></GeoShell>
   }
 
+  if (location.startsWith('/geo/site-admin')) {
+    const sectionSlug = location.slice('/geo/site-admin'.length).split('/').filter(Boolean)[0] || 'overview'
+    return <GeoShell><SiteAdminPage sectionSlug={sectionSlug} /></GeoShell>
+  }
+
   const geoPages = {
     '/geo/dashboard': <GeoDashboard />,
     '/geo/keywords': <ResourcePage type="keywords" />,
@@ -645,7 +660,9 @@ function ProtectedApp() {
     '/geo/seo': <PlaceholderPage title="搜索引擎 SEO" subtitle="传统搜索增长入口已打开，后续可在此配置关键词、页面和排名任务。" />,
     '/geo/team': <ModulePage module="team" />,
     '/geo/realname': <SettingsPage module="realname" />,
-    '/geo/agent': <SettingsPage module="agent" />,
+    '/geo/agent': <AgentStudioPage view="website" />,
+    '/geo/agent/card': <AgentStudioPage view="card" />,
+    '/geo/agent/service': <AgentStudioPage view="service" />,
     '/geo/targets': <ModulePage module="targets" />,
     '/geo/images': <ModulePage module="images" />,
     '/geo/video-script': <ModulePage module="video-script" />,
@@ -654,7 +671,12 @@ function ProtectedApp() {
     '/geo/prompts': <ModulePage module="prompts" />,
     '/geo/article-batch': <ModulePage module="article-batch" />,
     '/geo/article-manage': <ArticleManagePage />,
+    '/geo/automation-logs': <ModulePage module="automation-logs" />,
     '/geo/stations': <ModulePage module="stations" />,
+    '/geo/station-menu': <ModulePage module="station-menu" />,
+    '/geo/station-profile': <ModulePage module="station-profile" />,
+    '/geo/station-cities': <ModulePage module="station-cities" />,
+    '/geo/station-products': <ModulePage module="station-products" />,
     '/geo/records': <ModulePage module="records" />,
     '/geo/video-create': <ModulePage module="video-create" />,
     '/geo/video-manage': <ModulePage module="video-manage" />,
