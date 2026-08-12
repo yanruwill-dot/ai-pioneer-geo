@@ -210,7 +210,7 @@ function ContactForm({ customerId, website }) {
     messages.unshift({ ...form, id: Date.now(), createdAt: new Date().toISOString(), status: '待跟进' })
     localStorage.setItem(key, JSON.stringify(messages)); setSent(true)
   }
-  return <form className="public-contact-form" onSubmit={submit}><span>ONLINE MESSAGE</span><h2>告诉我们你的业务问题</h2>{sent ? <div className="message-success"><CheckCircle2 /><b>留言已保存</b><p>可在官网管理后台的“在线留言”页面查看。</p></div> : <><label>姓名<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><label>联系电话<input required value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></label><label>咨询内容<textarea required rows="5" value={form.need} onChange={(event) => setForm({ ...form, need: event.target.value })} /></label><button>提交留言 <ArrowUpRight /></button></>}<p>{website.company} · {website.phone}</p></form>
+  return <form className="public-contact-form" onSubmit={submit}><span>ONLINE MESSAGE</span><h2>告诉我们你的业务问题</h2>{sent ? <div className="message-success"><CheckCircle2 /><b>留言已保存</b><p>可在官网管理后台的“在线留言”页面查看。</p></div> : <><label>姓名<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><label>联系电话<input required value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></label><label>咨询内容<textarea required rows="5" value={form.need} onChange={(event) => setForm({ ...form, need: event.target.value })} /></label><button type="submit">提交留言 <ArrowUpRight /></button></>}<p>{website.company} · {website.phone}</p></form>
 }
 
 function SitePageBody({ page, website, customerId, articles }) {
