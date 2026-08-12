@@ -120,5 +120,6 @@ export function buildWebsiteDraft({ customer = {}, realname = {}, agent = {}, kn
     policeRecord: '',
     headVerify: '',
     analytics: '',
+    autoUpdateArticles: true,
   }
 }

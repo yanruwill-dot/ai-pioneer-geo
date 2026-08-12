@@ -29,6 +29,8 @@ SQLite
 ```text
 React / Vite 静态站点
         │
+        ├─ auto-articles.json（公开文章库）
+        │
         ▼
 浏览器本地数据层 demoApi.js
         │
@@ -36,7 +38,7 @@ React / Vite 静态站点
 localStorage（仅当前访问者）
 ```
 
-`main` 分支推送后由 `.github/workflows/deploy-pages.yml` 自动构建并部署。工作流生成 `404.html` 作为 SPA 回退页，Vite 使用 `/ai-pioneer-geo/` 资源基路径。
+`main` 分支推送后由 `.github/workflows/deploy-pages.yml` 自动构建并部署。工作流每天北京时间 09:15 运行 `scripts/generate-auto-article.mjs`，按日期去重更新 `public/auto-articles.json`，有变化时提交到仓库，并在同一次任务中重新部署 Pages。工作流生成 `404.html` 作为 SPA 回退页，Vite 使用 `/ai-pioneer-geo/` 资源基路径。
 
 ## 关键设计
 
@@ -48,4 +50,5 @@ localStorage（仅当前访问者）
 - 官网生成器从当前客户的实名认证、知识库、图片素材与文章记录组装网站草稿；最终网站配置写入 `module_settings.agent.website`。
 - `/api/public/site/:customerId` 只暴露已生成的网站配置和公开文章摘要，不返回智能体名片、客服或其他内部设置。
 - 前台固定生成首页、关于、产品、新闻、图集和联系页面；管理后台按官方手册拆分为模板、域名、栏目、内容、SEO、城市分站与留言入口。
+- 自动文章只使用仓库内的原创企业 GEO 主题与结构化模板，不抓取第三方正文；官网开关控制公开文章是否合并到新闻页。
 - 登录密码使用 scrypt 哈希；会话 token 使用 24 字节随机值。

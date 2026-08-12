@@ -1,5 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
   ADMIN_SECTIONS,
   SITE_PAGES,
@@ -10,6 +13,7 @@ import {
   siteRoute,
   slugifyBrand,
 } from '../src/websiteBuilder.js'
+import { updateFeedFile } from '../scripts/generate-auto-article.mjs'
 
 test('website draft imports identity, knowledge and image records', () => {
   const website = buildWebsiteDraft({
@@ -32,6 +36,25 @@ test('website draft imports identity, knowledge and image records', () => {
   assert.equal(website.products[0].title, '核心产品')
   assert.equal(website.gallery[0].image, 'https://example.com/factory.jpg')
   assert.equal(website.news[0].title, '行业观察')
+  assert.equal(website.autoUpdateArticles, true)
+})
+
+test('daily article updater writes once per day and keeps different days', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'auto-article-'))
+  const file = join(directory, 'feed.json')
+  try {
+    assert.equal((await updateFeedFile(file, '2026-08-12')).changed, true)
+    assert.equal((await updateFeedFile(file, '2026-08-12')).changed, false)
+    assert.equal((await updateFeedFile(file, '2026-08-13')).changed, true)
+    const feed = JSON.parse(await readFile(file, 'utf8'))
+    assert.equal(feed.articles.length, 2)
+    assert.equal(feed.articles[0].date, '2026-08-13')
+    assert.ok(feed.articles[0].summary.length > 20)
+    assert.equal(feed.articles[0].source, '智能体官网自动更新')
+    assert.ok(feed.articles[0].body.length >= 5)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
 })
 
 test('all public and admin routes resolve to allowed pages', () => {

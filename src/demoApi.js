@@ -167,6 +167,10 @@ function readState() {
       state.settings[1].agent.website = generatedWebsite(state, 1)
       changed = true
     }
+    if (state.settings?.[1]?.agent?.website?.autoUpdateArticles === undefined) {
+      state.settings[1].agent.website.autoUpdateArticles = true
+      changed = true
+    }
     for (const evidence of RECORDED_EVIDENCE) {
       const recordedIndex = state.observations.findIndex((row) => row.external_id === evidence.externalId || (evidence.sourceUrl && row.source_url === evidence.sourceUrl))
       if (recordedIndex === -1) {

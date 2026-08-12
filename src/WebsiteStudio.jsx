@@ -65,9 +65,30 @@ function usePublicSite(customerId) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   useEffect(() => {
-    api(`/public/site/${customerId}`).then(setData).catch((cause) => setError(cause.message || '官网读取失败'))
+    Promise.all([
+      api(`/public/site/${customerId}`),
+      fetch(`${import.meta.env.BASE_URL}auto-articles.json`, { cache: 'no-store' }).then((response) => response.ok ? response.json() : { articles: [] }).catch(() => ({ articles: [] })),
+    ]).then(([site, feed]) => {
+      const autoArticles = site.website.autoUpdateArticles === false ? [] : (feed.articles || [])
+      const seen = new Set()
+      const articles = [...autoArticles, ...site.articles].filter((article) => {
+        const key = article.id || article.title
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+      setData({ ...site, articles, autoFeed: feed })
+    }).catch((cause) => setError(cause.message || '官网读取失败'))
   }, [customerId])
   return { data, error }
+}
+
+function useAutoArticleFeed() {
+  const [feed, setFeed] = useState({ schedule: '每天 09:15（北京时间）', updatedAt: null, articles: [] })
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}auto-articles.json`, { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((result) => { if (result) setFeed(result) }).catch(() => {})
+  }, [])
+  return feed
 }
 
 function LoadingState({ error }) {
@@ -116,10 +137,24 @@ function WebsiteBuilder({ bundle, onSaved }) {
   const [step, setStep] = useState(1)
   const [editing, setEditing] = useState(initial.status !== 'generated')
   const [generating, setGenerating] = useState(false)
+  const [savingAutomation, setSavingAutomation] = useState(false)
   const [error, setError] = useState('')
+  const autoFeed = useAutoArticleFeed()
+  const publicUrl = `${window.location.origin}${import.meta.env.BASE_URL}#/site/${customer.id}/home`
 
   const patch = (next) => setDraft((current) => ({ ...current, ...next }))
   const togglePage = (slug) => patch({ pages: draft.pages.includes(slug) ? draft.pages.filter((item) => item !== slug) : [...draft.pages, slug] })
+  const toggleAutoUpdate = async () => {
+    const website = { ...draft, autoUpdateArticles: draft.autoUpdateArticles === false, updatedAt: new Date().toISOString() }
+    const data = { ...bundle.agent, website }
+    setSavingAutomation(true)
+    try {
+      await api('/module-settings/agent', { method: 'PUT', body: JSON.stringify({ customerId: customer.id, data }) })
+      setDraft(website); onSaved(data)
+    } finally {
+      setSavingAutomation(false)
+    }
+  }
   const generate = async () => {
     if (!draft.company.trim() || !draft.brand.trim() || !draft.introduction.trim()) return setError('企业名称、品牌名称和企业介绍不能为空')
     if (!draft.pages.length) return setError('至少保留一个网站栏目')
@@ -137,9 +172,12 @@ function WebsiteBuilder({ bundle, onSaved }) {
   }
 
   if (!editing && draft.status === 'generated') return <section className="website-live-card">
-    <div className="live-card-top"><div><span><Globe2 /></span><div><em>AI WEBSITE · READY</em><h2>{draft.company}</h2><p>{draft.headline}</p></div></div><strong><CheckCircle2 /> 智能体官网已生成</strong></div>
-    <div className="live-site-preview" style={{ backgroundImage: `linear-gradient(90deg,rgba(3,12,28,.95),rgba(3,12,28,.25)),url("${safeAssetUrl(draft.heroImage)}")` }}><span>{draft.brand}</span><h3>{draft.headline}</h3><p>{draft.subhead}</p></div>
-    <div className="live-site-meta"><dl><div><dt>网站 ID</dt><dd>{draft.siteId}</dd></div><div><dt>预览二级域名</dt><dd>{draft.previewDomain}</dd></div><div><dt>绑定域名</dt><dd>{draft.domain || '未绑定 · 当前使用预览地址'}</dd></div><div><dt>模板方案</dt><dd>{templates.find((item) => item.id === draft.theme)?.name || '深海智识'}</dd></div><div><dt>HTTPS / SSL</dt><dd className="pending">本地预览不提供证书</dd></div><div><dt>已生成页面</dt><dd>{draft.pages.length} 个</dd></div></dl><div className="live-site-actions"><button onClick={() => navigate(siteRoute(customer.id))}><ArrowUpRight /> 预览网站</button><button className="primary-button" onClick={() => navigate(adminRoute())}><Settings2 /> 管理网站</button><button onClick={() => { setEditing(true); setStep(1) }}><WandSparkles /> 重新生成</button></div></div>
+    <div className="live-card-top"><div><span><Globe2 /></span><div><em>AI WEBSITE · ONLINE</em><h2>智能体官网已开通</h2><p>官网与每日内容更新任务均运行在 GitHub Pages。</p></div></div><strong><CheckCircle2 /> 正常运行</strong></div>
+    <div className="site-opened-panel">
+      <div className="site-opened-toolbar"><div className="opened-brand"><span>{draft.brand.slice(0, 2)}</span><div><b>{draft.brand}</b><em>{draft.company}</em></div></div><label className="auto-update-toggle"><span><b>自动更新文章</b><em>{savingAutomation ? '正在保存' : autoFeed.schedule}</em></span><input type="checkbox" checked={draft.autoUpdateArticles !== false} disabled={savingAutomation} onChange={toggleAutoUpdate} /><i /></label><div className="live-site-actions"><button onClick={() => navigate(siteRoute(customer.id))}><ArrowUpRight /> 预览网站</button><button className="primary-button" onClick={() => navigate(adminRoute())}><Settings2 /> 管理网站</button></div></div>
+      <dl className="opened-site-meta"><div><dt>网站 ID</dt><dd>{draft.siteId}</dd></div><div className="wide"><dt>公开网址</dt><dd><a href={publicUrl}>{publicUrl}</a></dd></div><div><dt>HTTPS / SSL</dt><dd className="ready">已开启</dd></div><div><dt>模板方案</dt><dd>{templates.find((item) => item.id === draft.theme)?.name || '深海智识'}</dd></div><div><dt>自动文章</dt><dd>{draft.autoUpdateArticles === false ? '已暂停展示' : `已启用 · ${autoFeed.articles.length} 篇`}</dd></div><div><dt>最近自动更新</dt><dd>{autoFeed.updatedAt ? autoFeed.updatedAt.slice(0, 16).replace('T', ' ') : '等待首次运行'}</dd></div></dl>
+      <div className="auto-update-proof"><CheckCircle2 /><div><b>真实定时任务</b><span>GitHub 每天自动生成 1 篇企业 GEO 文章，同日重复运行不会重复发布，更新后自动重建官网。</span></div><button onClick={() => { setEditing(true); setStep(1) }}><WandSparkles /> 重新生成网站</button></div>
+    </div>
   </section>
 
   return <section className="website-builder-card">
@@ -180,7 +218,7 @@ function SitePageBody({ page, website, customerId, articles }) {
   if (page === 'home') return <><section className="public-hero" style={{ backgroundImage: `linear-gradient(90deg,rgba(3,12,28,.96) 0%,rgba(3,12,28,.72) 42%,rgba(3,12,28,.1) 100%),url("${safeAssetUrl(website.heroImage)}")` }}><div><span>TRUSTED KNOWLEDGE · AI VISIBILITY</span><h1>{website.headline}</h1><p>{website.subhead}</p><div><button onClick={() => navigate(siteRoute(customerId, 'products'))}>了解核心服务 <ArrowUpRight /></button><button onClick={() => navigate(siteRoute(customerId, 'contact'))}>预约沟通</button></div></div></section><section className="public-intro"><div><span>ABOUT THE BRAND</span><h2>可信身份，是进入 AI 答案的第一步</h2></div><p>{website.introduction}</p></section><section className="public-services">{website.products.slice(0, 3).map((item, index) => <article key={item.title}><span>0{index + 1}</span><h3>{item.title}</h3><p>{item.description}</p><button onClick={() => navigate(siteRoute(customerId, 'products'))}>查看服务 <ChevronRight /></button></article>)}</section></>
   if (page === 'about') return <section className="public-page"><header><span>ABOUT US</span><h1>关于 {website.brand}</h1><p>{website.subhead}</p></header><div className="about-layout"><article><h2>{website.company}</h2><p>{website.introduction}</p><p>我们把企业主体、产品服务、案例证据与常见问题整理为长期可维护的数字资产，让客户在传统搜索和生成式 AI 搜索中都能找到准确、可信的信息。</p></article><aside>{[['6', '官网栏目'], [String(website.products.length), '核心服务'], [String(website.faqs.length), '标准问答'], ['24h', '内容可更新']].map(([value, label]) => <div key={label}><b>{value}</b><span>{label}</span></div>)}</aside></div></section>
   if (page === 'products') return <section className="public-page"><header><span>PRODUCTS & SERVICES</span><h1>产品与服务</h1><p>从品牌身份到内容资产，再到信源与数据回查，形成完整的 GEO 增长闭环。</p></header><div className="product-public-grid">{website.products.map((item, index) => <article key={`${item.title}-${index}`}><span>{String(index + 1).padStart(2, '0')}</span><h2>{item.title}</h2><p>{item.description}</p><button onClick={() => navigate(siteRoute(customerId, 'contact'))}>咨询方案 <ArrowUpRight /></button></article>)}</div></section>
-  if (page === 'news') { const rows = articles.length ? articles.map((item) => ({ title: item.title, summary: item.detail, date: item.updated_at?.slice(0, 10) || item.created_at?.slice(0, 10) })) : website.news; return <section className="public-page"><header><span>NEWS & INSIGHTS</span><h1>新闻资讯</h1><p>持续更新企业动态、行业洞察与 GEO 实践内容。</p></header><div className="news-public-list">{rows.map((item, index) => <article key={`${item.title}-${index}`}><time>{item.date || '2026-08-12'}</time><div><h2>{item.title}</h2><p>{item.summary}</p></div><ArrowUpRight /></article>)}</div></section> }
+  if (page === 'news') { const rows = articles.length ? articles.map((item) => ({ title: item.title, summary: item.summary || item.detail, date: item.date || item.updated_at?.slice(0, 10) || item.created_at?.slice(0, 10), body: item.body, automated: item.source === '智能体官网自动更新' })) : website.news; return <section className="public-page"><header><span>NEWS & INSIGHTS</span><h1>新闻资讯</h1><p>持续更新企业动态、行业洞察与 GEO 实践内容。</p></header><div className="news-public-list">{rows.map((item, index) => <article key={`${item.title}-${index}`}><time>{item.date || '2026-08-12'}</time><div>{item.automated && <span className="auto-article-badge">每日自动更新</span>}<h2>{item.title}</h2><p>{item.summary}</p>{item.body?.length > 0 && <details className="auto-article-body"><summary>阅读全文</summary>{item.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</details>}</div><ArrowUpRight /></article>)}</div></section> }
   if (page === 'gallery') return <section className="public-page"><header><span>BRAND GALLERY</span><h1>企业图集</h1><p>品牌视觉、业务路径与企业知识资产的统一展示。</p></header><div className="gallery-public-grid">{website.gallery.map((item, index) => <article key={`${item.title}-${index}`} style={item.image ? { backgroundImage: `url("${safeAssetUrl(item.image)}")` } : {}}><div><span>0{index + 1}</span><h2>{item.title}</h2><p>{item.description}</p></div></article>)}</div></section>
   return <section className="public-page contact-public-page"><header><span>CONTACT</span><h1>联系我们</h1><p>从一个真实业务问题开始，建立企业在 AI 搜索中的可信存在。</p></header><div className="contact-public-layout"><aside><MapPinned /><h2>{website.company}</h2><dl><div><dt>咨询电话</dt><dd>{website.phone}</dd></div><div><dt>联系地址</dt><dd>{website.address}</dd></div><div><dt>品牌名称</dt><dd>{website.brand}</dd></div></dl></aside><ContactForm customerId={customerId} website={website} /></div></section>
 }
