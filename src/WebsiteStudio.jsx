@@ -67,7 +67,7 @@ function usePublicSite(customerId) {
   useEffect(() => {
     Promise.all([
       api(`/public/site/${customerId}`),
-      fetch(`${import.meta.env.BASE_URL}auto-articles.json`, { cache: 'no-store' }).then((response) => response.ok ? response.json() : { articles: [] }).catch(() => ({ articles: [] })),
+      fetch(`${import.meta.env.BASE_URL}auto-articles.json?v=${Date.now()}`, { cache: 'no-store' }).then((response) => response.ok ? response.json() : { articles: [] }).catch(() => ({ articles: [] })),
     ]).then(([site, feed]) => {
       const autoArticles = site.website.autoUpdateArticles === false ? [] : (feed.articles || [])
       const seen = new Set()
@@ -86,7 +86,7 @@ function usePublicSite(customerId) {
 function useAutoArticleFeed() {
   const [feed, setFeed] = useState({ schedule: '每天 09:15（北京时间）', updatedAt: null, articles: [] })
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}auto-articles.json`, { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((result) => { if (result) setFeed(result) }).catch(() => {})
+    fetch(`${import.meta.env.BASE_URL}auto-articles.json?v=${Date.now()}`, { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((result) => { if (result) setFeed(result) }).catch(() => {})
   }, [])
   return feed
 }
