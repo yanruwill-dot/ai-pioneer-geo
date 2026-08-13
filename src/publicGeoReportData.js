@@ -47,7 +47,7 @@ export const publicGeoRows = keywords.map((keyword, index) => ({
   platform: index < 10 ? '豆包' : index < 15 ? 'DeepSeek' : '千问',
   device: index % 3 === 2 ? '移动' : 'PC',
   target: index % 4 === 2 ? '郑州蔚蓝云朵艺术学校' : '蔚蓝云朵艺术学校',
-  platformUrl: index < 10 ? 'https://www.doubao.com/chat/' : '',
+  platformUrl: 'https://www.doubao.com/chat/',
   snapshotUrl: snapshotVoucherUrl,
 }))
 
