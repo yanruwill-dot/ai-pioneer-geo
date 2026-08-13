@@ -52,7 +52,6 @@ export function PublicGeoDashboardPage() {
   const [tab, setTab] = useState('搜索报表')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [snapshot, setSnapshot] = useState(null)
   const [notice, setNotice] = useState('')
 
   useEffect(() => {
@@ -113,7 +112,7 @@ export function PublicGeoDashboardPage() {
         <div className="public-report-warning"><b>!</b><span>由于 AI 大模型的动态学习、千人千面等特性，不同时间、不同区域的用户查询结果可能存在差异，报表支持在线预览最新的 <strong>2000</strong> 条数据。</span></div>
         <div className="public-platform-filters" aria-label="AI 平台筛选">{publicGeoPlatforms.map((row, index) => <button key={row.name} aria-pressed={platform === row.name} className={platform === row.name ? 'active' : ''} onClick={() => choosePlatform(row.name)}><i style={{ '--platform-tone': row.tone }}>{row.name.slice(0, 1)}</i><span>{row.name}<small>{index % 2 ? '移动' : 'PC'}({row.value > 99999 ? '99999+' : Math.round(row.value / 2)})</small></span></button>)}</div>
         <label className="public-table-search"><Search /><input aria-label="请输入问题" placeholder="请输入问题" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} />{(query || platform !== '全部平台') && <button aria-label="清空筛选" onClick={() => { setQuery(''); setPlatform('全部平台'); setPage(1) }}><X /></button>}</label>
-        <div className="public-table-scroll"><table><thead><tr><th>序号</th><th>搜索词</th><th>平台</th><th>转化目标</th><th>操作</th></tr></thead><tbody>{paged.rows.map((row) => <tr key={row.id}><td>{row.id}</td><td><b>{row.keyword}</b></td><td>{row.platform} ({row.device})</td><td>{row.target}</td><td><div><button onClick={() => setSnapshot(row)}><FileCheck2 /> 快照凭证</button>{row.platformUrl ? <a href={row.platformUrl} aria-label={`打开豆包：${row.keyword}`}><ExternalLink /> 转到豆包</a> : <button disabled title="当前演示记录没有保存平台入口"><ExternalLink /> 暂无原会话</button>}</div></td></tr>)}</tbody></table></div>
+        <div className="public-table-scroll"><table><thead><tr><th>序号</th><th>搜索词</th><th>平台</th><th>转化目标</th><th>操作</th></tr></thead><tbody>{paged.rows.map((row) => <tr key={row.id}><td>{row.id}</td><td><b>{row.keyword}</b></td><td>{row.platform} ({row.device})</td><td>{row.target}</td><td><div><a href={row.snapshotUrl} aria-label={`打开快照凭证：${row.keyword}`}><FileCheck2 /> 快照</a>{row.platformUrl ? <a href={row.platformUrl} aria-label={`打开豆包：${row.keyword}`}><ExternalLink /> 转到豆包</a> : <button disabled title="当前演示记录没有保存平台入口"><ExternalLink /> 暂无原会话</button>}</div></td></tr>)}</tbody></table></div>
         {!paged.rows.length && <div className="public-empty"><Search /><b>没有匹配的数据</b><span>清空平台或问题筛选后再试。</span></div>}
         <footer className="public-pagination"><button disabled={paged.page === 1} onClick={() => setPage((value) => value - 1)}><ChevronLeft /></button><span>第 <b>{paged.page}</b> / {paged.totalPages} 页</span><button disabled={paged.page === paged.totalPages} onClick={() => setPage((value) => value + 1)}><ChevronRight /></button><select aria-label="每页条数" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1) }}><option value="10">10 条/页</option><option value="20">20 条/页</option></select></footer>
       </> : <div className="public-station-grid">{['河南艺术教育指南', '郑州少儿培训观察', '管城兴趣教育导航', '中原艺术成长地图'].map((name, index) => <article key={name}><span>高权重分站 0{index + 1}</span><h2>{name}</h2><p>已覆盖品牌实体、地域服务与常见问答内容。</p><b>{128 + index * 37}<small> 条已收录</small></b><button onClick={() => flash(`${name} 数据已刷新`)}>查看分站数据</button></article>)}</div>}
@@ -121,6 +120,5 @@ export function PublicGeoDashboardPage() {
 
     <footer className="public-geo-footer"><PioneerLogo /><span>AI先行者 · 全域 AI 搜索数据服务</span></footer>
     {notice && <div className="public-toast">{notice}</div>}
-    {snapshot && <div className="public-snapshot-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setSnapshot(null)}><article className="public-snapshot"><header><div><span>AI先行者 · 搜索快照凭证</span><h2>{snapshot.keyword}</h2></div><button aria-label="关闭快照" onClick={() => setSnapshot(null)}><X /></button></header><dl><div><dt>平台</dt><dd>{snapshot.platform} ({snapshot.device})</dd></div><div><dt>转化目标</dt><dd>{snapshot.target}</dd></div><div><dt>采集日期</dt><dd>2026-08-12</dd></div><div><dt>凭证编号</dt><dd>AI-{String(snapshot.id).padStart(4, '0')}</dd></div></dl><p>此页面为复刻演示数据凭证，不等同于目标平台实时查询结果。</p><button className="public-snapshot-close" onClick={() => setSnapshot(null)}>我知道了</button></article></div>}
   </main>
 }

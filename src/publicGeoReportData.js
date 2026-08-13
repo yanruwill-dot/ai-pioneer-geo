@@ -39,6 +39,8 @@ const keywords = [
   '河南音乐培训学校', '郑州少儿艺术中心', '管城区少儿舞蹈班', '郑州兴趣培训班',
 ]
 
+const snapshotVoucherUrl = 'https://geo.zxaigc.com/snapshot-voucher?id=1000000109341681&keyword_type=0&sign=YvDyOw'
+
 export const publicGeoRows = keywords.map((keyword, index) => ({
   id: index + 1,
   keyword,
@@ -46,6 +48,7 @@ export const publicGeoRows = keywords.map((keyword, index) => ({
   device: index % 3 === 2 ? '移动' : 'PC',
   target: index % 4 === 2 ? '郑州蔚蓝云朵艺术学校' : '蔚蓝云朵艺术学校',
   platformUrl: index < 10 ? 'https://www.doubao.com/chat/' : '',
+  snapshotUrl: snapshotVoucherUrl,
 }))
 
 export function filterPublicGeoRows(rows, { platform = '全部平台', query = '' } = {}) {
