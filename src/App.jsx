@@ -56,6 +56,7 @@ import { crmTitleFor } from './crmData.js'
 import { CaseCockpitPage } from './CaseCockpitPage.jsx'
 import { CrmCases, CrmFinance, CrmOrders, CrmOverview } from './crmPages.jsx'
 import { EvidenceSnapshotPage } from './EvidenceSnapshotPage.jsx'
+import { PublicGeoDashboardPage } from './PublicGeoDashboardPage.jsx'
 import { EVIDENCE_RETURN_STORAGE_KEY, safeHttpUrl, snapshotRoute } from './evidence.js'
 import { AgentStudioPage, GeneratedSitePage, SiteAdminPage } from './WebsiteStudio.jsx'
 
@@ -613,6 +614,7 @@ function PublicSupportPage({ title, subtitle }) {
 function ProtectedApp() {
   const { user, loading } = useContext(AuthContext)
   const [location] = useLocation()
+  if (location === '/geo-dashboard/index-1/YvDyOw') return <PublicGeoDashboardPage />
   if (loading) return <div className="page-loader"><Sparkles /> 正在加载工作台</div>
   if (location.startsWith('/site/')) {
     const [customerId, page = 'home'] = location.slice('/site/'.length).split('/').filter(Boolean)
