@@ -21,10 +21,12 @@ test('public GEO report filters and paginates deterministic table rows', () => {
   assert.ok(doubao.every((row) => row.platformUrl === 'https://www.doubao.com/chat/'))
   assert.ok(publicGeoRows.every((row) => row.platformUrl === 'https://www.doubao.com/chat/'))
   assert.ok(publicGeoRows.every((row) => row.snapshotUrl === 'https://geo.zxaigc.com/snapshot-voucher?id=1000000109341681&keyword_type=0&sign=YvDyOw'))
-  const paged = paginatePublicGeoRows(publicGeoRows, 2, 10)
-  assert.equal(paged.page, 2)
-  assert.equal(paged.totalPages, 2)
-  assert.equal(paged.rows.at(0)?.id, 11)
+  assert.equal(publicGeoRows.length, 50)
+  const paged = paginatePublicGeoRows(publicGeoRows, 5, 10)
+  assert.equal(paged.page, 5)
+  assert.equal(paged.totalPages, 5)
+  assert.equal(paged.rows.length, 10)
+  assert.equal(paged.rows.at(0)?.id, 41)
 })
 
 test('public report route is reachable before authentication and uses AI先行者 branding', async () => {
@@ -32,7 +34,7 @@ test('public report route is reachable before authentication and uses AI先行�
     readFile(new URL('../src/App.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/PublicGeoDashboardPage.jsx', import.meta.url), 'utf8'),
   ])
-  assert.match(app, /location === '\/geo-dashboard\/index-1\/YvDyOw'/)
+  assert.match(app, /location === '\/geo-dashboard\/index-1\/YvDyOw' \|\| location === '\/geo'/)
   assert.ok(app.indexOf("location === '/geo-dashboard/index-1/YvDyOw'") < app.indexOf('if (loading)'))
   assert.match(page, /AI先行者/)
   assert.match(page, /href=\{row\.platformUrl\}/)
