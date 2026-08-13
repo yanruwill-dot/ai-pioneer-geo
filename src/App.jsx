@@ -620,6 +620,10 @@ function ProtectedApp() {
     const [customerId, page = 'home'] = location.slice('/site/'.length).split('/').filter(Boolean)
     return <GeneratedSitePage customerId={Number(customerId) || currentCustomer().id} page={page} />
   }
+  if (isStaticDemo && location.startsWith('/geo/site-admin')) {
+    const sectionSlug = location.slice('/geo/site-admin'.length).split('/').filter(Boolean)[0] || 'overview'
+    return <GeoShell><SiteAdminPage sectionSlug={sectionSlug} /></GeoShell>
+  }
   if (!user) return <Redirect to="/login" />
   if (location.startsWith('/geo-dashboard/index-1/')) {
     const caseSlug = location.slice('/geo-dashboard/index-1/'.length).split('/')[0]

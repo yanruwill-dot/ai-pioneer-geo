@@ -43,3 +43,10 @@ test('public report route is reachable before authentication and uses AI先行�
   assert.doesNotMatch(page, /暂无原会话/)
   assert.doesNotMatch(page, /摘星/)
 })
+
+test('static Pages exposes the connected website admin route without a login redirect', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  assert.match(app, /if \(isStaticDemo && location\.startsWith\('\/geo\/site-admin'\)\)/)
+  assert.ok(app.indexOf("isStaticDemo && location.startsWith('/geo/site-admin')") < app.indexOf("if (!user) return <Redirect to=\"/login\" />"))
+  assert.match(app, /<GeoShell><SiteAdminPage sectionSlug=\{sectionSlug\} \/><\/GeoShell>/)
+})
